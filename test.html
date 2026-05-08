@@ -211,24 +211,56 @@ async function startTest() {
   const fullName = first + ' ' + last;
   state.studentName = fullName;
 
-  // Check test access
-  const { data: stuData } = await sb.from('students').select('id,first_name,last_name').ilike('first_name',first).ilike('last_name',last);
-  let studentId = null;
-  if(stuData?.length) {
-    state.studentId = stuData[0].id;
-    studentId = stuData[0].id;
-    // Check access
-    const { data: access } = await sb.from('test_access').select('can_take').eq('test_id',state.test.id).eq('student_id',stuData[0].id).single();
-    if(access && access.can_take===false) { showError('Ruxsat yo\'q', 'Siz bu testga kirishga ruxsatga ega emassiz.'); return; }
+  showLoading();
+
+  // 1. O'quvchini bazadan topish (ism + familiya bo'yicha)
+  const { data: stuData } = await sb.from('students')
+    .select('id,first_name,last_name')
+    .ilike('first_name', first)
+    .ilike('last_name', last);
+
+  if(!stuData || stuData.length === 0) {
+    // O'quvchi bazada yo'q — ruxsat yo'q
+    showError('Ruxsat berilmagan ❌',
+      `"${fullName}" ismi ro'yxatda topilmadi.<br><br>` +
+      `O'qituvchingizga murojaat qiling yoki ismingizni to'g'ri kiriting.`);
+    return;
   }
 
-  // Check already taken
-  let q = sb.from('results').select('id,percent,score,total').eq('test_id',state.test.id);
-  if(studentId) q = q.eq('student_id',studentId); else q = q.ilike('student_name',fullName);
-  const { data: prev } = await q.limit(1);
+  const student = stuData[0];
+  state.studentId = student.id;
+
+  // 2. test_access jadvalida ruxsat borligini tekshirish
+  const { data: access } = await sb.from('test_access')
+    .select('can_take')
+    .eq('test_id', state.test.id)
+    .eq('student_id', student.id)
+    .single();
+
+  if(!access) {
+    // test_access da umuman yo'q — ruxsat berilmagan
+    showError('Ruxsat berilmagan ❌',
+      `Siz bu testga qo'shilmagan o'quvchisiz.<br><br>` +
+      `O'qituvchingizdan testga qo'shishini so'rang.`);
+    return;
+  }
+
+  if(access.can_take === false) {
+    showError('Ruxsat berilmagan ❌',
+      `O'qituvchingiz siz uchun bu testni bloklagan.<br><br>` +
+      `O'qituvchingizga murojaat qiling.`);
+    return;
+  }
+
+  // 3. Allaqachon topshirganmi?
+  const { data: prev } = await sb.from('results')
+    .select('id,percent,score,total')
+    .eq('test_id', state.test.id)
+    .eq('student_id', student.id)
+    .limit(1);
+
   if(prev?.length) {
-    const r = prev[0];
-    showAlreadyDone(r, fullName);
+    showAlreadyDone(prev[0], fullName);
     return;
   }
 

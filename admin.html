@@ -355,6 +355,8 @@ tr:hover td { background: #f8f9ff; }
       <div class="s-section">Hisobotlar</div>
       <div class="s-item" onclick="nav('reports')"><span class="ico">📋</span> PDF Hisobotlar</div>
       <div class="s-item" onclick="nav('links')"><span class="ico">🔗</span> Test Havolalar</div>
+      <div class="s-section">Tizim</div>
+      <div class="s-item" onclick="openM('addAdmin')"><span class="ico">👤</span> Admin Qo'shish</div>
     </nav>
     <div class="s-bottom">
       <div class="s-user">
@@ -595,7 +597,12 @@ tr:hover td { background: #f8f9ff; }
       <div class="fg"><label>Ismi *</label><input id="sFirst" placeholder="Ism"></div>
       <div class="fg"><label>Familiyasi *</label><input id="sLast" placeholder="Familiya"></div>
     </div>
-    <div class="fg"><label>Telefon</label><input id="sPhone" placeholder="+998 90 000 00 00"></div>
+    <div class="fg"><label>Telefon</label>
+      <div style="display:flex;align-items:center;gap:0">
+        <span style="background:#f0f2ff;border:1.5px solid var(--border);border-right:none;border-radius:10px 0 0 10px;padding:10px 12px;font-size:14px;font-weight:700;color:var(--primary)">+998</span>
+        <input id="sPhone" placeholder="90 123 45 67" maxlength="12" oninput="formatPhone(this)" style="border-radius:0 10px 10px 0;border-left:none">
+      </div>
+    </div>
     <div class="fg"><label>Guruh(lar) — bir nechta tanlash mumkin</label><select id="sGroup" multiple style="height:120px"></select></div>
     <div class="fg"><label>Izoh</label><input id="sNote" placeholder="Ixtiyoriy"></div>
     <div class="m-actions">
@@ -613,7 +620,12 @@ tr:hover td { background: #f8f9ff; }
       <div class="fg"><label>Ismi *</label><input id="esFirst"></div>
       <div class="fg"><label>Familiyasi *</label><input id="esLast"></div>
     </div>
-    <div class="fg"><label>Telefon</label><input id="esPhone"></div>
+    <div class="fg"><label>Telefon</label>
+      <div style="display:flex;align-items:center;gap:0">
+        <span style="background:#f0f2ff;border:1.5px solid var(--border);border-right:none;border-radius:10px 0 0 10px;padding:10px 12px;font-size:14px;font-weight:700;color:var(--primary)">+998</span>
+        <input id="esPhone" placeholder="90 123 45 67" maxlength="12" oninput="formatPhone(this)" style="border-radius:0 10px 10px 0;border-left:none">
+      </div>
+    </div>
     <div class="fg"><label>Guruh(lar)</label><select id="esGroup" multiple style="height:120px"></select></div>
     <div class="fg"><label>Izoh</label><input id="esNote"></div>
     <div class="m-actions">
@@ -664,6 +676,52 @@ tr:hover td { background: #f8f9ff; }
     <input type="hidden" id="maTestId">
     <div id="accessList"></div>
     <div class="m-actions"><button class="btn btn-white" onclick="closeM('manageAccess')">Yopish</button><button class="btn btn-primary" onclick="saveAccess()">Saqlash</button></div>
+  </div>
+</div>
+
+<!-- TEST TAHRIRLASH MODALI -->
+<div class="overlay" id="ov-editTest">
+  <div class="modal wide">
+    <h3>✏️ Testni Tahrirlash</h3>
+    <input type="hidden" id="etId">
+    <div class="fg-row">
+      <div class="fg"><label>Test Nomi *</label><input id="etName"></div>
+      <div class="fg"><label>Guruh *</label><select id="etGroup"></select></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label>Vaqt (daqiqa)</label><input id="etTime" type="number" min="1"></div>
+      <div class="fg"><label>Holat</label><select id="etStatus"><option value="active">Faol</option><option value="draft">Qoralama</option></select></div>
+    </div>
+    <div class="fg"><label>Tavsif</label><input id="etDesc"></div>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="etShuffle"> Savollarni aralashtir</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="etShuffleOpts"> Variantlarni aralashtir</label>
+    </div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text)">📝 Savollar (tahrirlash)</div>
+    <div id="etQContainer"></div>
+    <button class="btn btn-white" style="width:100%;justify-content:center;margin-bottom:10px" onclick="addEditQ()">+ Savol Qo'shish</button>
+    <div class="m-actions">
+      <button class="btn btn-white" onclick="closeM('editTest')">Bekor</button>
+      <button class="btn btn-primary" onclick="updateTest()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN QO'SHISH MODALI -->
+<div class="overlay" id="ov-addAdmin">
+  <div class="modal">
+    <h3>👤 Yangi Admin Qo'shish</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Yangi o'qituvchi/admin uchun Supabase Authentication da foydalanuvchi yaratiladi.</p>
+    <div class="fg"><label>Email *</label><input id="adminEmail" placeholder="teacher@school.uz" type="email"></div>
+    <div class="fg"><label>Parol *</label><input id="adminPass" placeholder="Kamida 6 ta belgi" type="password"></div>
+    <div class="fg"><label>Ism (ixtiyoriy)</label><input id="adminName" placeholder="O'qituvchi ismi"></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--text2)">
+      ℹ️ Yangi admin yaratilgandan so'ng u ham shu saytga kirishi mumkin. Barcha adminlar teng huquqga ega.
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-white" onclick="closeM('addAdmin')">Bekor</button>
+      <button class="btn btn-primary" onclick="createAdmin()">Yaratish</button>
+    </div>
   </div>
 </div>
 
@@ -1050,9 +1108,11 @@ async function saveStudent() {
   const groupIds = Array.from(sel.selectedOptions).map(o=>o.value);
   if(!first||!last) return notify('Ism va familiya kiriting!','err');
   if(!groupIds.length) return notify('Kamida 1 ta guruh tanlang!','err');
+  const phone = getPhoneValue('sPhone');
+  if(document.getElementById('sPhone').value && phone===null) return notify('Telefon noto\'g\'ri! 9 ta raqam kiriting','err');
   const { data, error } = await sb.from('students').insert({
     first_name:first, last_name:last,
-    phone:document.getElementById('sPhone').value.trim(),
+    phone: phone,
     note:document.getElementById('sNote').value.trim()
   }).select().single();
   if(error) return notify('Xatolik: '+error.message,'err');
@@ -1070,7 +1130,9 @@ async function updateStudent() {
   const sel = document.getElementById('esGroup');
   const groupIds = Array.from(sel.selectedOptions).map(o=>o.value);
   if(!first||!last) return notify('Ism va familiya kiriting!','err');
-  await sb.from('students').update({first_name:first,last_name:last,phone:document.getElementById('esPhone').value.trim(),note:document.getElementById('esNote').value.trim()}).eq('id',id);
+  const phone = getPhoneValue('esPhone');
+  if(document.getElementById('esPhone').value && phone===null) return notify('Telefon noto\'g\'ri! 9 ta raqam kiriting','err');
+  await sb.from('students').update({first_name:first,last_name:last,phone:phone,note:document.getElementById('esNote').value.trim()}).eq('id',id);
   await sb.from('student_groups').delete().eq('student_id',id);
   if(groupIds.length) await sb.from('student_groups').insert(groupIds.map(gid=>({student_id:id,group_id:gid})));
   await loadAll(); closeM('editStudent'); notify('Yangilandi!');
@@ -1088,7 +1150,7 @@ function editStudent(id) {
   document.getElementById('esId').value=id;
   document.getElementById('esFirst').value=s.first_name;
   document.getElementById('esLast').value=s.last_name;
-  document.getElementById('esPhone').value=s.phone||'';
+  document.getElementById('esPhone').value = s.phone ? s.phone.replace('+998','').trim() : '';
   document.getElementById('esNote').value=s.note||'';
   populateGroupMultiSelect();
   setTimeout(()=>{
@@ -1211,6 +1273,142 @@ async function deleteTest(id) {
   await loadAll(); notify("Test o'chirildi!",'info');
 }
 
+// ========== TEST TAHRIRLASH ==========
+let etQCount = 0;
+async function editTest(id) {
+  const t = allTests.find(x=>x.id===id); if(!t) return;
+  // Guruh selectini to'ldir
+  document.getElementById('etGroup').innerHTML = allGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+  document.getElementById('etId').value = id;
+  document.getElementById('etName').value = t.name;
+  document.getElementById('etGroup').value = t.group_id;
+  document.getElementById('etTime').value = t.time_limit||30;
+  document.getElementById('etStatus').value = t.status;
+  document.getElementById('etDesc').value = t.description||'';
+  document.getElementById('etShuffle').checked = t.shuffle_questions;
+  document.getElementById('etShuffleOpts').checked = t.shuffle_options;
+  // Savollarni yuklash
+  const { data: qs } = await sb.from('questions').select('*').eq('test_id',id).order('order_num');
+  etQCount = 0;
+  const container = document.getElementById('etQContainer');
+  container.innerHTML = '';
+  (qs||[]).forEach(q => addEditQ(q));
+  openM('editTest');
+}
+
+function addEditQ(qData) {
+  etQCount++;
+  const id = 'etqb_'+etQCount;
+  const div = document.createElement('div');
+  div.className = 'q-block'; div.id = id;
+  div.dataset.qid = qData?.id || '';
+  const opts = qData?.options || ['','','',''];
+  const correct = qData?.correct_index ?? 0;
+  div.innerHTML = `
+    <div class="q-block-head">
+      <span class="q-block-num">Savol ${etQCount}</span>
+      <button class="btn btn-danger btn-sm" onclick="this.closest('.q-block').remove()">O'chirish</button>
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <input class="qt" placeholder="Savol matni *" value="${qData?.question_text||''}">
+    </div>
+    ${opts.map((opt,i)=>`<div class="opt-line">
+      <div class="correct-btn ${i===correct?'yes':''}" onclick="setCorrect(this)" title="To'g'ri javob">✓</div>
+      <input type="text" class="ot" style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);font-family:inherit;font-size:13px;color:var(--text);outline:none;width:100%" placeholder="Variant ${String.fromCharCode(65+i)}" value="${opt}">
+    </div>`).join('')}`;
+  document.getElementById('etQContainer').appendChild(div);
+}
+
+function collectEditQuestions() {
+  const qs = [];
+  document.querySelectorAll('#etQContainer .q-block').forEach((b,idx)=>{
+    const text = b.querySelector('.qt')?.value.trim(); if(!text) return;
+    const opts = []; let correct = 0;
+    b.querySelectorAll('.opt-line').forEach((row,i)=>{
+      const t = row.querySelector('.ot')?.value.trim();
+      if(t){ opts.push(t); if(row.querySelector('.correct-btn')?.classList.contains('yes')) correct=opts.length-1; }
+    });
+    if(opts.length>=2) qs.push({ question_text:text, options:opts, correct_index:correct, order_num:idx, _qid: b.dataset.qid });
+  });
+  return qs;
+}
+
+async function updateTest() {
+  const id = document.getElementById('etId').value;
+  const name = document.getElementById('etName').value.trim();
+  const groupId = document.getElementById('etGroup').value;
+  if(!name) return notify('Test nomini kiriting!','err');
+  if(!groupId) return notify('Guruh tanlang!','err');
+  const questions = collectEditQuestions();
+  if(!questions.length) return notify('Kamida 1 ta savol kiriting!','err');
+
+  // Testni yangilash
+  await sb.from('tests').update({
+    name, group_id:groupId,
+    time_limit: parseInt(document.getElementById('etTime').value)||30,
+    status: document.getElementById('etStatus').value,
+    description: document.getElementById('etDesc').value.trim(),
+    shuffle_questions: document.getElementById('etShuffle').checked,
+    shuffle_options: document.getElementById('etShuffleOpts').checked,
+  }).eq('id',id);
+
+  // Eski savollarni o'chir, yangisini yoz
+  await sb.from('questions').delete().eq('test_id',id);
+  await sb.from('questions').insert(questions.map(q=>({
+    test_id:id, question_text:q.question_text,
+    options:q.options, correct_index:q.correct_index, order_num:q.order_num
+  })));
+
+  await loadAll(); closeM('editTest');
+  notify(`"${name}" testi yangilandi!`);
+}
+
+// ========== TELEFON FORMATI ==========
+function formatPhone(input) {
+  let v = input.value.replace(/\D/g,'');
+  if(v.length>9) v=v.slice(0,9);
+  // Format: 90 123 45 67
+  let formatted = '';
+  if(v.length>0) formatted = v.slice(0,2);
+  if(v.length>2) formatted += ' '+v.slice(2,5);
+  if(v.length>5) formatted += ' '+v.slice(5,7);
+  if(v.length>7) formatted += ' '+v.slice(7,9);
+  input.value = formatted;
+}
+
+function getPhoneValue(inputId) {
+  const raw = document.getElementById(inputId)?.value.replace(/\D/g,'') || '';
+  if(raw && raw.length !== 9) return null; // noto'g'ri
+  return raw ? '+998'+raw : '';
+}
+
+// ========== ADMIN QO'SHISH ==========
+async function createAdmin() {
+  const email = document.getElementById('adminEmail').value.trim();
+  const pass = document.getElementById('adminPass').value;
+  const name = document.getElementById('adminName').value.trim();
+  if(!email) return notify('Email kiriting!','err');
+  if(!pass || pass.length < 6) return notify('Parol kamida 6 ta belgi!','err');
+
+  // Supabase Admin API orqali foydalanuvchi yaratish
+  const { data, error } = await sb.auth.admin?.createUser({
+    email, password:pass,
+    email_confirm: true,
+    user_metadata: { name }
+  });
+
+  if(error) {
+    // admin.createUser ishlamasa — oddiy signUp ishlatamiz
+    const { error: e2 } = await sb.auth.signUp({ email, password:pass, options:{ data:{ name } } });
+    if(e2) return notify('Xatolik: '+e2.message,'err');
+    notify(`✅ ${email} uchun hisob yaratildi! Email tasdiqlash xabari yuborildi.`);
+  } else {
+    notify(`✅ ${email} admin sifatida qo'shildi!`);
+  }
+  closeM('addAdmin');
+  ['adminEmail','adminPass','adminName'].forEach(id=>document.getElementById(id).value='');
+}
+
 async function toggleTest(id) {
   const t = allTests.find(x=>x.id===id);
   const newStatus = t.status==='active'?'draft':'active';
@@ -1247,6 +1445,7 @@ function renderTests() {
         </div>
       </td>
       <td style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn btn-white btn-sm" onclick="editTest('${t.id}')">✏️</button>
         <button class="btn btn-white btn-sm" onclick="toggleTest('${t.id}')">${t.status==='active'?'⏸':'▶️'}</button>
         <button class="btn btn-yellow btn-sm" onclick="openAccess('${t.id}')">👥</button>
         <button class="btn btn-danger btn-sm" onclick="deleteTest('${t.id}')">🗑️</button>
