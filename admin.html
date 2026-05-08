@@ -7,6 +7,7 @@
 <meta name="sb-key" content="YOUR_KEY">
 <title>EduCenter Pro — Boshqaruv</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="/config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
@@ -737,26 +738,23 @@ const { createClient } = supabase;
 let sb = null;
 
 async function initSupabase() {
+  // 1. config.js dan o'qi (local va Vercel uchun)
+  if(window.SUPABASE_CONFIG?.url && window.SUPABASE_CONFIG?.key &&
+     !window.SUPABASE_CONFIG.url.includes('SIZNING')) {
+    sb = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
+    return true;
+  }
+  // 2. /api/env dan o'qi (Vercel env variables)
   try {
     const res = await fetch('/api/env');
     const env = await res.json();
-    if (!env.url || !env.key) {
-      showEnvError();
-      return false;
-    }
-    sb = createClient(env.url, env.key);
-    return true;
-  } catch(e) {
-    // /api/env ishlamasa, to'g'ridan config dan o'qib ko'r
-    const url = document.querySelector('meta[name="sb-url"]')?.content;
-    const key = document.querySelector('meta[name="sb-key"]')?.content;
-    if(url && key && url !== 'YOUR_URL') {
-      sb = createClient(url, key);
+    if(env.url && env.key) {
+      sb = createClient(env.url, env.key);
       return true;
     }
-    showEnvError();
-    return false;
-  }
+  } catch(e) {}
+  showEnvError();
+  return false;
 }
 
 function showEnvError() {
