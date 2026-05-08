@@ -1632,7 +1632,7 @@ async function generateGroupPDF() {
   if(month) results = (results||[]).filter(r=>r.month===month);
 
   doc.setFontSize(18); doc.setFont(undefined,'bold');
-  doc.text(`EduCenter Pro — ${g.name}`, 14, 20);
+  doc.text(`Dasturlab Akademiy — ${g.name}`, 14, 20);
   doc.setFontSize(11); doc.setFont(undefined,'normal');
   doc.text(`Fan: ${g.subject||'-'} | Oqituvchi: ${g.teacher_name||'-'} | ${month?monthLabel(month):'Barcha oylar'}`, 14, 30);
   doc.text(`Sana: ${new Date().toLocaleDateString('uz-UZ')}`, 14, 38);
@@ -1713,7 +1713,7 @@ async function generateFullPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFontSize(20); doc.setFont(undefined,'bold');
-  doc.text('EduCenter Pro — To\'liq Hisobot', 14, 20);
+  doc.text('Dasturlab Akademiy — To\'liq Hisobot', 14, 20);
   doc.setFontSize(11); doc.setFont(undefined,'normal');
   doc.text(`Sana: ${new Date().toLocaleDateString('uz-UZ')} | Guruhlar: ${allGroups.length} | Oquvchilar: ${allStudents.length}`, 14, 30);
   doc.setFillColor(99,102,241); doc.rect(14,35,180,2,'F');
