@@ -325,14 +325,14 @@ tr:hover td { background: #f8f9ff; }
         <h1>EduCenter Pro</h1>
         <p>O'quv markazi boshqaruv tizimi</p>
       </div>
-      <div class="login-form">
+      <form class="login-form" onsubmit="event.preventDefault();doLogin()">
         <label class="lbl">Email</label>
         <input type="email" id="loginEmail" placeholder="admin@educenter.uz" autocomplete="email">
         <label class="lbl">Parol</label>
-        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-        <button class="login-btn" onclick="doLogin()">Kirish →</button>
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+        <button type="submit" class="login-btn">Kirish →</button>
         <div class="login-err" id="loginErr"></div>
-      </div>
+      </form>
     </div>
   </div>
 </div>
@@ -712,16 +712,18 @@ tr:hover td { background: #f8f9ff; }
   <div class="modal">
     <h3>👤 Yangi Admin Qo'shish</h3>
     <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Yangi o'qituvchi/admin uchun Supabase Authentication da foydalanuvchi yaratiladi.</p>
-    <div class="fg"><label>Email *</label><input id="adminEmail" placeholder="teacher@school.uz" type="email"></div>
-    <div class="fg"><label>Parol *</label><input id="adminPass" placeholder="Kamida 6 ta belgi" type="password"></div>
+    <form onsubmit="event.preventDefault();createAdmin()">
+    <div class="fg"><label>Email *</label><input id="adminEmail" placeholder="teacher@school.uz" type="email" autocomplete="off"></div>
+    <div class="fg"><label>Parol *</label><input id="adminPass" placeholder="Kamida 6 ta belgi" type="password" autocomplete="new-password"></div>
     <div class="fg"><label>Ism (ixtiyoriy)</label><input id="adminName" placeholder="O'qituvchi ismi"></div>
     <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--text2)">
       ℹ️ Yangi admin yaratilgandan so'ng u ham shu saytga kirishi mumkin. Barcha adminlar teng huquqga ega.
     </div>
     <div class="m-actions">
-      <button class="btn btn-white" onclick="closeM('addAdmin')">Bekor</button>
-      <button class="btn btn-primary" onclick="createAdmin()">Yaratish</button>
+      <button type="button" class="btn btn-white" onclick="closeM('addAdmin')">Bekor</button>
+      <button type="submit" class="btn btn-primary">Yaratish</button>
     </div>
+    </form>
   </div>
 </div>
 
@@ -829,6 +831,11 @@ async function doLogin() {
   const pass = document.getElementById('loginPass').value;
   document.getElementById('loginErr').textContent = '';
   if(!email || !pass) { document.getElementById('loginErr').textContent = 'Email va parolni kiriting'; return; }
+  // sb tayyor bo'lishini tekshir
+  if(!sb) {
+    const ok = await initSupabase();
+    if(!ok) { document.getElementById('loginErr').textContent = 'Tizim sozlanmagan. Qayta yuklang.'; return; }
+  }
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   if(error) { document.getElementById('loginErr').textContent = 'Email yoki parol noto\'g\'ri'; return; }
   currentUser = data.user;
