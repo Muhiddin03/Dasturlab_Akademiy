@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="sb-url" content="YOUR_URL">
+<meta name="sb-key" content="YOUR_KEY">
 <title>EduCenter — Test</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -115,13 +117,16 @@ const { createClient } = supabase;
 let sb = null;
 
 async function initSupabase() {
-  const res = await fetch('/api/env');
-  const env = await res.json();
-  sb = createClient(env.url, env.key);
+  try {
+    const res = await fetch('/api/env');
+    const env = await res.json();
+    if(env.url && env.key) { sb = createClient(env.url, env.key); return; }
+  } catch(e) {}
+  // Fallback: meta tegdan o'qi
+  const url = document.querySelector('meta[name="sb-url"]')?.content;
+  const key = document.querySelector('meta[name="sb-key"]')?.content;
+  if(url && key && url !== 'YOUR_URL') { sb = createClient(url, key); }
 }
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-
 let state = { test:null, questions:[], answers:{}, current:0, startTime:null, timer:null, studentId:null, studentName:'' };
 
 // Get short code from URL: /t/ABC123

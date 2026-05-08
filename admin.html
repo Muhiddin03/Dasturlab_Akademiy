@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="sb-url" content="YOUR_URL">
+<meta name="sb-key" content="YOUR_KEY">
 <title>EduCenter Pro — Boshqaruv</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -667,6 +669,10 @@ tr:hover td { background: #f8f9ff; }
 
 <script>
 // ========== CONFIG ==========
+// Kalitlarni Vercel Environment Variables dan oladi
+// Vercel > Settings > Environment Variables ga qo'shing:
+// NEXT_PUBLIC_SUPABASE_URL va NEXT_PUBLIC_SUPABASE_KEY
+
 const { createClient } = supabase;
 let sb = null;
 
@@ -675,30 +681,40 @@ async function initSupabase() {
     const res = await fetch('/api/env');
     const env = await res.json();
     if (!env.url || !env.key) {
-      document.getElementById('loginPage').innerHTML = `
-        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1e1b4b">
-          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:40px;max-width:420px;text-align:center;color:#fff">
-            <div style="font-size:48px;margin-bottom:16px">⚙️</div>
-            <h2 style="font-size:20px;font-weight:800;margin-bottom:12px">Sozlash kerak</h2>
-            <p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6">
-              Vercel Dashboard da Environment Variables qo'shing:<br><br>
-              <code style="background:rgba(255,255,255,0.1);padding:4px 8px;border-radius:6px;font-size:13px">SUPABASE_URL</code><br><br>
-              <code style="background:rgba(255,255,255,0.1);padding:4px 8px;border-radius:6px;font-size:13px">SUPABASE_ANON_KEY</code>
-            </p>
-          </div>
-        </div>`;
+      showEnvError();
       return false;
     }
     sb = createClient(env.url, env.key);
     return true;
   } catch(e) {
-    console.error('Env yuklashda xatolik:', e);
+    // /api/env ishlamasa, to'g'ridan config dan o'qib ko'r
+    const url = document.querySelector('meta[name="sb-url"]')?.content;
+    const key = document.querySelector('meta[name="sb-key"]')?.content;
+    if(url && key && url !== 'YOUR_URL') {
+      sb = createClient(url, key);
+      return true;
+    }
+    showEnvError();
     return false;
   }
 }
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+function showEnvError() {
+  document.getElementById('loginPage').innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1e1b4b">
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:40px;max-width:460px;text-align:center;color:#fff">
+        <div style="font-size:48px;margin-bottom:16px">⚙️</div>
+        <h2 style="font-size:20px;font-weight:800;margin-bottom:16px">Supabase sozlanmagan</h2>
+        <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.8;text-align:left">
+          <strong>Vercel Dashboard:</strong><br>
+          Settings → Environment Variables ga qo'shing:<br><br>
+          <code style="background:rgba(255,255,255,0.1);padding:6px 10px;border-radius:6px;display:block;margin-bottom:8px">SUPABASE_URL = https://xxx.supabase.co</code>
+          <code style="background:rgba(255,255,255,0.1);padding:6px 10px;border-radius:6px;display:block;margin-bottom:16px">SUPABASE_ANON_KEY = eyJhbGci...</code>
+          Keyin: <strong>Deployments → Redeploy</strong>
+        </p>
+      </div>
+    </div>`;
+}
 // ========== STATE ==========
 let currentUser = null;
 let allGroups = [], allStudents = [], allTests = [], allResults = [];
