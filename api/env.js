@@ -12,6 +12,6 @@ export default function handler(req, res) {
   // Bu kalitlar GitHub da SAQLANMAYDI — faqat Vercel serverida
   res.status(200).json({
     url: process.env.SUPABASE_URL || '',
-    key: process.env.SUPABASE_ANON_KEY || '',
+    key: process.env.SUPABASE_ANON_KEY || '',   
   });
 }
