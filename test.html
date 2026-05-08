@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduCenter — Test</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --primary: #6366f1;
+  --primary2: #4f46e5;
+  --green: #10b981;
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --bg: #f0f2ff;
+  --text: #1e1b4b;
+  --text2: #6b7280;
+  --border: #e5e7eb;
+}
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+.card { background:#fff; border-radius:20px; padding:36px; width:520px; max-width:100%; box-shadow:0 8px 48px rgba(99,102,241,0.12); border:1px solid rgba(99,102,241,0.1); }
+.logo { text-align:center; margin-bottom:28px; }
+.logo-icon { font-size:40px; display:block; margin-bottom:8px; }
+.logo h1 { font-size:22px; font-weight:800; color:var(--text); }
+.logo p { font-size:13px; color:var(--text2); margin-top:4px; }
+
+.test-info { background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(79,70,229,0.05)); border:1px solid rgba(99,102,241,0.15); border-radius:14px; padding:18px; margin-bottom:22px; }
+.test-info h2 { font-size:18px; font-weight:800; margin-bottom:6px; }
+.test-meta { display:flex; gap:14px; flex-wrap:wrap; }
+.test-meta span { font-size:12px; color:var(--text2); font-weight:500; }
+
+.fg { margin-bottom:14px; }
+.fg label { display:block; font-size:12px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px; }
+.fg input { width:100%; background:#f8f9ff; border:1.5px solid var(--border); border-radius:10px; padding:12px 16px; font-size:15px; color:var(--text); font-family:'Outfit',sans-serif; outline:none; transition:border-color 0.2s; }
+.fg input:focus { border-color:var(--primary); background:#fff; }
+
+.btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:'Outfit',sans-serif; transition:all 0.2s; }
+.btn-primary { background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; box-shadow:0 4px 20px rgba(99,102,241,0.3); }
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(99,102,241,0.4); }
+.btn-primary:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+
+/* HOME - code input */
+.code-wrap { text-align:center; padding:10px 0; }
+.code-wrap h2 { font-size:20px; font-weight:800; margin-bottom:8px; }
+.code-wrap p { font-size:13px; color:var(--text2); margin-bottom:24px; }
+.code-inp { font-family:'JetBrains Mono',monospace !important; font-size:32px !important; font-weight:700 !important; text-align:center; letter-spacing:8px; text-transform:uppercase; }
+
+/* PROGRESS BAR */
+.prog-bar { height:4px; background:#f0f2ff; border-radius:2px; margin-bottom:22px; overflow:hidden; }
+.prog-fill { height:100%; background:linear-gradient(90deg,var(--primary),var(--primary2)); border-radius:2px; transition:width 0.4s ease; }
+
+/* TIMER */
+.timer-badge { display:inline-flex; align-items:center; gap:6px; background:#fff; border:1.5px solid var(--border); border-radius:10px; padding:7px 14px; font-size:14px; font-weight:700; }
+.timer-badge.warn { border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+/* QUESTION */
+.q-num { font-size:12px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+.q-text { font-size:17px; font-weight:700; line-height:1.5; margin-bottom:20px; color:var(--text); }
+.opt { display:flex; align-items:center; gap:12px; padding:13px 16px; border-radius:12px; border:1.5px solid var(--border); margin-bottom:10px; cursor:pointer; transition:all 0.15s; font-size:14px; font-weight:500; background:#fff; }
+.opt:hover { border-color:var(--primary); background:rgba(99,102,241,0.04); }
+.opt.sel { border-color:var(--primary); background:rgba(99,102,241,0.08); color:var(--primary); }
+.opt.correct { border-color:var(--green); background:rgba(16,185,129,0.08); color:var(--green); }
+.opt.wrong { border-color:var(--red); background:rgba(239,68,68,0.08); color:var(--red); }
+.opt-letter { width:32px; height:32px; border-radius:8px; background:rgba(99,102,241,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; flex-shrink:0; transition:all 0.15s; }
+.opt.sel .opt-letter { background:var(--primary); color:#fff; }
+.opt.correct .opt-letter { background:var(--green); color:#fff; }
+.opt.wrong .opt-letter { background:var(--red); color:#fff; }
+
+/* NAV BUTTONS */
+.q-nav { display:flex; gap:10px; margin-top:20px; }
+.btn-nav { flex:1; padding:12px; border:1.5px solid var(--border); border-radius:10px; background:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:'Outfit',sans-serif; transition:all 0.15s; color:var(--text); }
+.btn-nav:hover { border-color:var(--primary); color:var(--primary); }
+.btn-submit { background:linear-gradient(135deg,var(--green),#059669); border:none; color:#fff; box-shadow:0 4px 16px rgba(16,185,129,0.3); }
+.btn-submit:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(16,185,129,0.4); }
+
+/* Q GRID */
+.q-grid { display:flex; flex-wrap:wrap; gap:6px; margin-top:18px; padding-top:16px; border-top:1px solid var(--border); }
+.q-dot { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--border); background:#fff; transition:all 0.15s; color:var(--text2); }
+.q-dot.answered { background:rgba(99,102,241,0.1); border-color:var(--primary); color:var(--primary); }
+.q-dot.current { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+/* RESULT */
+.result-big { text-align:center; padding:20px 0; }
+.result-pct { font-family:'JetBrains Mono',monospace; font-size:72px; font-weight:900; letter-spacing:-2px; }
+.result-label { font-size:18px; font-weight:700; margin-top:8px; }
+.result-sub { font-size:14px; color:var(--text2); margin-top:6px; }
+.result-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:20px 0; }
+.r-stat { background:#f8f9ff; border-radius:12px; padding:14px; text-align:center; }
+.r-stat-num { font-size:22px; font-weight:900; }
+.r-stat-lbl { font-size:11px; color:var(--text3,#9ca3af); margin-top:2px; font-weight:600; text-transform:uppercase; }
+.r-detail { background:#f8f9ff; border-radius:12px; padding:16px; margin-bottom:12px; }
+
+/* LOADING */
+.loading { text-align:center; padding:60px 20px; }
+.spinner { width:40px; height:40px; border:3px solid rgba(99,102,241,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto 16px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.err-msg { text-align:center; padding:40px; }
+.err-icon { font-size:48px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="mainCard">
+    <div class="loading"><div class="spinner"></div><p style="color:#6b7280">Yuklanmoqda...</p></div>
+  </div>
+</div>
+
+<script>
+const { createClient } = supabase;
+let sb = null;
+
+async function initSupabase() {
+  const res = await fetch('/api/env');
+  const env = await res.json();
+  sb = createClient(env.url, env.key);
+}
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let state = { test:null, questions:[], answers:{}, current:0, startTime:null, timer:null, studentId:null, studentName:'' };
+
+// Get short code from URL: /t/ABC123
+function getCodeFromURL() {
+  const path = location.pathname;
+  const m = path.match(/\/t\/([A-Z0-9]{4,8})/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+async function init() {
+  await initSupabase();
+  const code = getCodeFromURL();
+  if(code) {
+    await loadTestByCode(code);
+  } else {
+    showCodeEntry();
+  }
+}
+
+function showCodeEntry() {
+  document.getElementById('mainCard').innerHTML = `
+    <div class="logo"><span class="logo-icon">🎓</span><h1>EduCenter Pro</h1><p>Test platformasi</p></div>
+    <div class="code-wrap">
+      <h2>Test kodini kiriting</h2>
+      <p>O'qituvchingiz bergan 6 ta belgili kodni kiriting</p>
+      <div class="fg"><input class="code-inp" id="codeInp" placeholder="ABC123" maxlength="6" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')goCode()"></div>
+      <button class="btn btn-primary" onclick="goCode()">Davom etish →</button>
+    </div>`;
+  setTimeout(()=>document.getElementById('codeInp')?.focus(),100);
+}
+
+async function goCode() {
+  const code = document.getElementById('codeInp')?.value.trim().toUpperCase();
+  if(!code||code.length<4) return;
+  history.pushState({}, '', '/t/'+code);
+  await loadTestByCode(code);
+}
+
+async function loadTestByCode(code) {
+  showLoading();
+  const { data:test, error } = await sb.from('tests').select('*').eq('short_code',code).single();
+  if(error||!test) { showError('Test topilmadi', 'Bu kod noto\'g\'ri yoki test o\'chirilgan.'); return; }
+  if(test.status!=='active') { showError('Test faol emas', 'Bu test hozirda faol emas. O\'qituvchingizga murojaat qiling.'); return; }
+  state.test = test;
+  showRegistration();
+}
+
+function showLoading() {
+  document.getElementById('mainCard').innerHTML = '<div class="loading"><div class="spinner"></div><p style="color:#6b7280">Yuklanmoqda...</p></div>';
+}
+
+function showError(title, msg) {
+  document.getElementById('mainCard').innerHTML = `
+    <div class="err-msg"><div class="err-icon">😕</div><h2 style="font-size:20px;font-weight:800;margin-bottom:8px">${title}</h2><p style="color:#6b7280">${msg}</p><br><button class="btn btn-primary" onclick="showCodeEntry()" style="margin-top:16px">← Orqaga</button></div>`;
+}
+
+function showRegistration() {
+  const t = state.test;
+  const g_color = '#6366f1';
+  document.getElementById('mainCard').innerHTML = `
+    <div class="logo"><span class="logo-icon">🎓</span><h1>EduCenter Pro</h1></div>
+    <div class="test-info">
+      <h2>${t.name}</h2>
+      ${t.description?`<p style="font-size:13px;color:#6b7280;margin-bottom:10px">${t.description}</p>`:''}
+      <div class="test-meta">
+        <span>⏱ ${t.time_limit} daqiqa</span>
+        <span>📝 Bir nechta savol</span>
+        ${t.shuffle_questions?'<span>🔀 Savollar aralashtiriladi</span>':''}
+      </div>
+    </div>
+    <div class="fg"><label>Ismingiz *</label><input id="regFirst" placeholder="Ismingizni kiriting" autocomplete="given-name"></div>
+    <div class="fg"><label>Familiyangiz *</label><input id="regLast" placeholder="Familiyangizni kiriting" autocomplete="family-name" onkeydown="if(event.key==='Enter')startTest()"></div>
+    <button class="btn btn-primary" onclick="startTest()">▶ Testni Boshlash</button>
+    <p style="text-align:center;margin-top:14px;font-size:12px;color:#9ca3af">Testni boshlaganingizdan keyin vaqt boshlanadi</p>`;
+  setTimeout(()=>document.getElementById('regFirst')?.focus(),100);
+}
+
+async function startTest() {
+  const first = document.getElementById('regFirst')?.value.trim();
+  const last = document.getElementById('regLast')?.value.trim();
+  if(!first||!last) { alert('Ism va familiyangizni kiriting!'); return; }
+  const fullName = first + ' ' + last;
+  state.studentName = fullName;
+
+  // Check test access
+  const { data: stuData } = await sb.from('students').select('id,first_name,last_name').ilike('first_name',first).ilike('last_name',last);
+  let studentId = null;
+  if(stuData?.length) {
+    state.studentId = stuData[0].id;
+    studentId = stuData[0].id;
+    // Check access
+    const { data: access } = await sb.from('test_access').select('can_take').eq('test_id',state.test.id).eq('student_id',stuData[0].id).single();
+    if(access && access.can_take===false) { showError('Ruxsat yo\'q', 'Siz bu testga kirishga ruxsatga ega emassiz.'); return; }
+  }
+
+  // Check already taken
+  let q = sb.from('results').select('id,percent,score,total').eq('test_id',state.test.id);
+  if(studentId) q = q.eq('student_id',studentId); else q = q.ilike('student_name',fullName);
+  const { data: prev } = await q.limit(1);
+  if(prev?.length) {
+    const r = prev[0];
+    showAlreadyDone(r, fullName);
+    return;
+  }
+
+  // Load questions
+  const { data: qs } = await sb.from('questions').select('*').eq('test_id',state.test.id).order('order_num');
+  let questions = qs || [];
+
+  // Shuffle if needed
+  if(state.test.shuffle_questions) questions = shuffle([...questions]);
+  if(state.test.shuffle_options) {
+    questions = questions.map(q=>{
+      const idxMap = [...Array(q.options.length).keys()];
+      const shuffled = shuffle([...idxMap]);
+      return { ...q, options: shuffled.map(i=>q.options[i]), _origCorrect: shuffled.indexOf(q.correct_index), correct_index: shuffled.indexOf(q.correct_index) };
+    });
+  }
+
+  state.questions = questions;
+  state.answers = {};
+  state.current = 0;
+  state.startTime = Date.now();
+
+  // Start timer
+  if(state.test.time_limit) {
+    let remaining = state.test.time_limit * 60;
+    state.timer = setInterval(()=>{
+      remaining--;
+      updateTimer(remaining);
+      if(remaining<=0) { clearInterval(state.timer); submitTest(); }
+    }, 1000);
+  }
+
+  renderQuestion();
+}
+
+function shuffle(arr) { for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+function updateTimer(sec) {
+  const el = document.getElementById('timerEl');
+  if(!el) return;
+  const m = Math.floor(sec/60), s = sec%60;
+  el.textContent = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
+  if(sec<60) el.classList.add('warn'); else el.classList.remove('warn');
+}
+
+function renderQuestion() {
+  const q = state.questions[state.current];
+  const total = state.questions.length;
+  const pct = Math.round((state.current/total)*100);
+  const answered = Object.keys(state.answers).length;
+  const selAns = state.answers[state.current];
+
+  document.getElementById('mainCard').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--primary)">${state.studentName}</div>
+        <div style="font-size:11px;color:#9ca3af">${answered}/${total} javob berildi</div>
+      </div>
+      ${state.test.time_limit?`<div class="timer-badge" id="timerEl">⏱ --:--</div>`:''}
+    </div>
+    <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+    <div class="q-num">Savol ${state.current+1} / ${total}</div>
+    <div class="q-text">${q.question_text}</div>
+    <div id="optsWrap">
+      ${q.options.map((opt,i)=>`
+        <div class="opt ${selAns===i?'sel':''}" onclick="selectOpt(${i})">
+          <div class="opt-letter">${String.fromCharCode(65+i)}</div>
+          <span>${opt}</span>
+        </div>`).join('')}
+    </div>
+    <div class="q-nav">
+      ${state.current>0?`<button class="btn-nav" onclick="goQ(-1)">← Oldingi</button>`:''}
+      ${state.current<total-1
+        ?`<button class="btn-nav" onclick="goQ(1)" style="border-color:var(--primary);color:var(--primary)">Keyingi →</button>`
+        :`<button class="btn-nav btn-submit" onclick="confirmSubmit()">✅ Yakunlash</button>`}
+    </div>
+    <div class="q-grid">
+      ${state.questions.map((_,i)=>`<div class="q-dot ${i===state.current?'current':state.answers[i]!==undefined?'answered':''}" onclick="goToQ(${i})">${i+1}</div>`).join('')}
+    </div>`;
+
+  // Restore timer display
+  if(state.test.time_limit) {
+    const elapsed = Math.round((Date.now()-state.startTime)/1000);
+    const remaining = state.test.time_limit*60 - elapsed;
+    updateTimer(Math.max(0,remaining));
+  }
+}
+
+function selectOpt(i) {
+  state.answers[state.current] = i;
+  renderQuestion();
+}
+
+function goQ(dir) { state.current += dir; renderQuestion(); }
+function goToQ(i) { state.current = i; renderQuestion(); }
+
+function confirmSubmit() {
+  const total = state.questions.length;
+  const answered = Object.keys(state.answers).length;
+  const unanswered = total - answered;
+  if(unanswered>0) {
+    if(!confirm(`${unanswered} ta savol javobsiz. Baribir yakunlaysizmi?`)) return;
+  }
+  submitTest();
+}
+
+async function submitTest() {
+  clearInterval(state.timer);
+  showLoading();
+  const total = state.questions.length;
+  let score = 0;
+  state.questions.forEach((q,i)=>{ if(state.answers[i]===q.correct_index) score++; });
+  const percent = Math.round((score/total)*100);
+  const timeTaken = Math.round((Date.now()-state.startTime)/60000);
+  const month = new Date().getFullYear()+'-'+(new Date().getMonth()+1).toString().padStart(2,'0');
+
+  const resultData = {
+    test_id: state.test.id,
+    student_id: state.studentId||null,
+    student_name: state.studentName,
+    score, total, percent,
+    time_taken: timeTaken, month,
+    answers: state.answers
+  };
+
+  const { error } = await sb.from('results').insert(resultData);
+  if(error) console.error('Natija saqlashda xatolik:', error);
+
+  showResult(score, total, percent, timeTaken);
+}
+
+function showResult(score, total, percent, timeTaken) {
+  const color = percent>=70?'var(--green)':percent>=50?'var(--amber)':'var(--red)';
+  const emoji = percent>=70?'🎉':percent>=50?'👍':'📚';
+  const label = percent>=90?"A'lo natija!":percent>=70?"Yaxshi natija!":percent>=50?'Qoniqarli':'Ko\'proq o\'rganish kerak';
+
+  document.getElementById('mainCard').innerHTML = `
+    <div class="logo"><span class="logo-icon">${emoji}</span><h1>Test Yakunlandi!</h1></div>
+    <div class="result-big">
+      <div class="result-pct" style="color:${color}">${percent}%</div>
+      <div class="result-label" style="color:${color}">${label}</div>
+      <div class="result-sub">${state.studentName}</div>
+    </div>
+    <div class="result-grid">
+      <div class="r-stat"><div class="r-stat-num" style="color:var(--green)">${score}</div><div class="r-stat-lbl">To'g'ri</div></div>
+      <div class="r-stat"><div class="r-stat-num" style="color:var(--red)">${total-score}</div><div class="r-stat-lbl">Noto'g'ri</div></div>
+      <div class="r-stat"><div class="r-stat-num">${timeTaken}</div><div class="r-stat-lbl">Daqiqa</div></div>
+    </div>
+    <div class="r-detail">
+      <div style="font-size:13px;color:#6b7280">📝 Test: <strong>${state.test.name}</strong></div>
+      <div style="font-size:13px;color:#6b7280;margin-top:4px">📅 Sana: ${new Date().toLocaleDateString('uz-UZ')}</div>
+    </div>
+    <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:8px">Natijangiz saqlandi. Sahifani yopishingiz mumkin.</p>`;
+}
+
+function showAlreadyDone(r, name) {
+  const color = r.percent>=70?'var(--green)':r.percent>=50?'var(--amber)':'var(--red)';
+  document.getElementById('mainCard').innerHTML = `
+    <div class="logo"><span class="logo-icon">✅</span><h1>Allaqachon topshirilgan</h1></div>
+    <div class="result-big">
+      <div class="result-pct" style="color:${color}">${r.percent}%</div>
+      <div style="font-size:16px;color:#6b7280;margin-top:8px">${r.score}/${r.total} to'g'ri — ${name}</div>
+    </div>
+    <p style="text-align:center;font-size:13px;color:#9ca3af;margin-top:20px">Siz bu testni allaqachon topshirgansiz.</p>`;
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
