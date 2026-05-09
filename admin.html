@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="sb-url" content="YOUR_URL">
 <meta name="sb-key" content="YOUR_KEY">
-<title>Dasturlab Akademiy — Boshqaruv</title>
+<title>EduCenter Pro — Boshqaruv</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<script src="config.js"></script>
+<script src="/config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
@@ -323,7 +323,7 @@ tr:hover td { background: #f8f9ff; }
     <div class="login-card">
       <div class="login-logo">
         <span class="logo-icon">🎓</span>
-        <h1>Dasturlab Akademiy</h1>
+        <h1>EduCenter Pro</h1>
         <p>O'quv markazi boshqaruv tizimi</p>
       </div>
       <form class="login-form" onsubmit="event.preventDefault();doLogin()">
@@ -342,7 +342,7 @@ tr:hover td { background: #f8f9ff; }
 <div id="app">
   <aside class="sidebar">
     <div class="s-logo">
-      <h1>🎓 Dasturlab Akademiy</h1>
+      <h1>🎓 EduCenter Pro</h1>
       <p id="sUserEmail">Yuklanmoqda...</p>
     </div>
     <nav class="s-nav">
@@ -357,7 +357,7 @@ tr:hover td { background: #f8f9ff; }
       <div class="s-item" onclick="nav('reports')"><span class="ico">📋</span> PDF Hisobotlar</div>
       <div class="s-item" onclick="nav('links')"><span class="ico">🔗</span> Test Havolalar</div>
       <div class="s-section">Tizim</div>
-      <div class="s-item" onclick="openM('addAdmin')"><span class="ico">👤</span> Admin Qo'shish</div>
+      <div class="s-item" onclick="nav('admins')"><span class="ico">👤</span> Adminlar</div>
     </nav>
     <div class="s-bottom">
       <div class="s-user">
@@ -527,6 +527,28 @@ tr:hover td { background: #f8f9ff; }
           </div>
         </div>
         <div id="linksGrid" class="group-grid"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ADMINLAR -->
+      <div class="page" id="page-admins">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <div>
+            <div style="font-size:13px;color:var(--text2)">Tizimga kirish huquqiga ega foydalanuvchilar</div>
+          </div>
+          <button class="btn btn-primary" onclick="openM('addAdmin')">+ Yangi Admin</button>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">👤 Adminlar Ro'yxati</span>
+            <span id="adminCount" style="font-size:12px;color:var(--text3)"></span>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Email</th><th>Ismi</th><th>Yaratilgan</th><th>So'nggi kirish</th><th>Holat</th><th>Amallar</th></tr></thead>
+              <tbody id="adminsTbody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -728,6 +750,23 @@ tr:hover td { background: #f8f9ff; }
   </div>
 </div>
 
+<!-- ADMIN TAHRIRLASH -->
+<div class="overlay" id="ov-editAdmin">
+  <div class="modal">
+    <h3>✏️ Adminni Tahrirlash</h3>
+    <input type="hidden" id="eaId">
+    <div class="fg"><label>Email</label><input id="eaEmail" disabled style="opacity:0.6;cursor:not-allowed"></div>
+    <div class="fg"><label>Ismi</label><input id="eaName" placeholder="Admin ismi"></div>
+    <div class="fg"><label>Yangi Parol (ixtiyoriy)</label>
+      <input id="eaPass" type="password" placeholder="O'zgartirmasangiz bo'sh qoldiring" autocomplete="new-password">
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-white" onclick="closeM('editAdmin')">Bekor</button>
+      <button class="btn btn-primary" onclick="updateAdmin()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ========== CONFIG ==========
 // Kalitlarni Vercel Environment Variables dan oladi
@@ -737,21 +776,23 @@ tr:hover td { background: #f8f9ff; }
 const { createClient } = supabase;
 let sb = null;
 
+// Supabase anon key public bo'lishi xavfsiz — RLS (Row Level Security) himoya qiladi
+const _SB_URL = 'https://zxaplrdoerblkoeoxhzd.supabase.co';
+const _SB_KEY = 'SIZNING_ANON_KEY_SHU_YERGA'; // supabase.com → Settings → API → anon public
+
 async function initSupabase() {
-  // 1. config.js dan o'qi (local va Vercel uchun)
-  if(window.SUPABASE_CONFIG?.url && window.SUPABASE_CONFIG?.key &&
-     !window.SUPABASE_CONFIG.url.includes('SIZNING')) {
+  if(window.SUPABASE_CONFIG?.url && !window.SUPABASE_CONFIG.url.includes('SIZNING')) {
     sb = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
     return true;
   }
-  // 2. /api/env dan o'qi (Vercel env variables)
+  if(_SB_KEY && !_SB_KEY.includes('SIZNING')) {
+    sb = createClient(_SB_URL, _SB_KEY);
+    return true;
+  }
   try {
     const res = await fetch('/api/env');
     const env = await res.json();
-    if(env.url && env.key) {
-      sb = createClient(env.url, env.key);
-      return true;
-    }
+    if(env.url && env.key) { sb = createClient(env.url, env.key); return true; }
   } catch(e) {}
   showEnvError();
   return false;
@@ -913,8 +954,9 @@ function nav(page) {
   document.getElementById('page-'+page).classList.add('active');
   document.querySelectorAll('.s-item').forEach(i=>i.classList.remove('active'));
   event?.currentTarget?.classList.add('active');
-  const titles = {dashboard:'Dashboard',groups:'Guruhlar',students:"O'quvchilar",tests:'Testlar',results:'Natijalar',reports:'PDF Hisobotlar',links:'Test Havolalar'};
+  const titles = {dashboard:'Dashboard',groups:'Guruhlar',students:"O'quvchilar",tests:'Testlar',results:'Natijalar',reports:'PDF Hisobotlar',links:'Test Havolalar',admins:'Adminlar Boshqaruvi'};
   document.getElementById('pageTitle').textContent = titles[page]||page;
+  if(page==='admins') loadAdmins();
 }
 
 // ========== HELPERS ==========
@@ -1412,6 +1454,124 @@ async function createAdmin() {
   }
   closeM('addAdmin');
   ['adminEmail','adminPass','adminName'].forEach(id=>document.getElementById(id).value='');
+  // Adminlar sahifasi ochiq bo'lsa yangilash
+  if(document.getElementById('page-admins').classList.contains('active')) loadAdmins();
+}
+
+// ========== ADMINLAR BOSHQARUVI ==========
+let allAdmins = [];
+
+async function loadAdmins() {
+  document.getElementById('adminsTbody').innerHTML =
+    `<tr><td colspan="7" style="text-align:center;padding:30px"><div class="loading"><div class="spinner"></div></div></td></tr>`;
+
+  // Supabase auth.users ni admin API orqali olish
+  const { data, error } = await sb.auth.admin.listUsers();
+
+  if(error) {
+    // Admin API ishlamasa — faqat joriy foydalanuvchini ko'rsatamiz
+    allAdmins = [currentUser];
+    renderAdmins();
+    document.getElementById('adminCount').textContent = '(Admin API cheklangan — faqat siz ko\'rinasiz)';
+    return;
+  }
+
+  allAdmins = data?.users || [];
+  document.getElementById('adminCount').textContent = `${allAdmins.length} ta admin`;
+  renderAdmins();
+}
+
+function renderAdmins() {
+  const tbody = document.getElementById('adminsTbody');
+  if(!allAdmins.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3)">Admin yo'q</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = allAdmins.map((u,i) => {
+    const name = u.user_metadata?.name || u.email?.split('@')[0] || '—';
+    const created = u.created_at ? new Date(u.created_at).toLocaleDateString('uz-UZ') : '—';
+    const lastLogin = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('uz-UZ') : 'Hali kirmagan';
+    const isMe = u.id === currentUser?.id;
+    const confirmed = u.email_confirmed_at ? true : false;
+    return `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#6366f1,#ec4899);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px">${name[0]?.toUpperCase()}</div>
+          <div>
+            <div style="font-size:13px;font-weight:600">${u.email}</div>
+            ${isMe ? '<span class="badge badge-indigo" style="font-size:10px">Siz</span>' : ''}
+          </div>
+        </div>
+      </td>
+      <td style="font-size:13px">${name}</td>
+      <td style="font-size:12px;color:var(--text3)">${created}</td>
+      <td style="font-size:12px;color:var(--text3)">${lastLogin}</td>
+      <td>
+        <span class="badge ${confirmed ? 'badge-green' : 'badge-yellow'}">
+          ${confirmed ? '✅ Tasdiqlangan' : '⏳ Tasdiqlanmagan'}
+        </span>
+      </td>
+      <td style="display:flex;gap:5px">
+        <button class="btn btn-white btn-sm" onclick="openEditAdmin('${u.id}','${u.email}','${name}')">✏️</button>
+        ${!isMe ? `<button class="btn btn-danger btn-sm" onclick="deleteAdmin('${u.id}','${u.email}')">🗑️</button>` : '<span style="font-size:11px;color:var(--text3);padding:4px">O\'zingiz</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openEditAdmin(id, email, name) {
+  document.getElementById('eaId').value = id;
+  document.getElementById('eaEmail').value = email;
+  document.getElementById('eaName').value = name === email.split('@')[0] ? '' : name;
+  document.getElementById('eaPass').value = '';
+  openM('editAdmin');
+}
+
+async function updateAdmin() {
+  const id = document.getElementById('eaId').value;
+  const name = document.getElementById('eaName').value.trim();
+  const pass = document.getElementById('eaPass').value;
+
+  // user_metadata yangilash
+  const { error } = await sb.auth.admin.updateUserById(id, {
+    user_metadata: { name: name || undefined },
+    ...(pass && pass.length >= 6 ? { password: pass } : {})
+  });
+
+  if(error) {
+    // Admin API ishlamasa — faqat parolni o'zgartirish (faqat o'z parolini)
+    if(pass && pass.length >= 6) {
+      const { error: e2 } = await sb.auth.updateUser({ password: pass });
+      if(e2) return notify('Xatolik: ' + e2.message, 'err');
+    }
+    notify('Ismi yangilash uchun Supabase admin huquqi kerak', 'info');
+  } else {
+    notify('Admin ma\'lumotlari yangilandi!');
+  }
+  closeM('editAdmin');
+  loadAdmins();
+}
+
+async function deleteAdmin(id, email) {
+  if(!confirm(`"${email}" adminni o'chirmoqchimisiz? Bu amalni qaytarib bo'lmaydi!`)) return;
+  const { error } = await sb.auth.admin.deleteUser(id);
+  if(error) {
+    notify('O\'chirish uchun Supabase admin huquqi kerak. Dashboard dan o\'chiring.', 'err');
+    return;
+  }
+  notify(`${email} o'chirildi!`, 'info');
+  loadAdmins();
+}
+
+async function confirmAdmin(id) {
+  const { error } = await sb.auth.admin.updateUserById(id, { email_confirm: true });
+  if(error) {
+    notify('Tasdiqlash uchun Supabase SQL Editor da ishga tushiring: UPDATE auth.users SET email_confirmed_at = NOW() WHERE id = \'' + id + '\'', 'info');
+    return;
+  }
+  notify('Admin tasdiqlandi!');
+  loadAdmins();
 }
 
 async function toggleTest(id) {
@@ -1632,7 +1792,7 @@ async function generateGroupPDF() {
   if(month) results = (results||[]).filter(r=>r.month===month);
 
   doc.setFontSize(18); doc.setFont(undefined,'bold');
-  doc.text(`Dasturlab Akademiy — ${g.name}`, 14, 20);
+  doc.text(`EduCenter Pro — ${g.name}`, 14, 20);
   doc.setFontSize(11); doc.setFont(undefined,'normal');
   doc.text(`Fan: ${g.subject||'-'} | Oqituvchi: ${g.teacher_name||'-'} | ${month?monthLabel(month):'Barcha oylar'}`, 14, 30);
   doc.text(`Sana: ${new Date().toLocaleDateString('uz-UZ')}`, 14, 38);
@@ -1713,7 +1873,7 @@ async function generateFullPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFontSize(20); doc.setFont(undefined,'bold');
-  doc.text('Dasturlab Akademiy — To\'liq Hisobot', 14, 20);
+  doc.text('EduCenter Pro — To\'liq Hisobot', 14, 20);
   doc.setFontSize(11); doc.setFont(undefined,'normal');
   doc.text(`Sana: ${new Date().toLocaleDateString('uz-UZ')} | Guruhlar: ${allGroups.length} | Oquvchilar: ${allStudents.length}`, 14, 30);
   doc.setFillColor(99,102,241); doc.rect(14,35,180,2,'F');
