@@ -390,6 +390,25 @@ textarea.inp{resize:vertical;min-height:80px}
 
 <!-- MODALS -->
 
+<!-- EDIT TEACHER -->
+<div class="modal-overlay" id="ov-editTeacher">
+  <div class="modal">
+    <div class="modal-title">O'qituvchini tahrirlash</div>
+    <input type="hidden" id="etId">
+    <div class="form-row"><label class="form-label">Ism Familiya</label>
+      <input class="inp" id="etName" placeholder="To'liq ism"></div>
+    <div class="form-row"><label class="form-label">Fan / Yo'nalish</label>
+      <input class="inp" id="etSubject" placeholder="Matematika, Ingliz tili, Dasturlash..."></div>
+    <div class="form-row"><label class="form-label">Guruhlar (bir nechta tanlash mumkin)</label>
+      <div id="etGroupsWrap" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeM('editTeacher')">Bekor</button>
+      <button class="btn btn-primary" onclick="saveEditTeacher()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD TEACHER -->
 <div class="modal-overlay" id="ov-addTeacher">
   <div class="modal">
@@ -845,31 +864,77 @@ function checkApprovals() {
 function renderApprovals() {
   const pending = allTeachers.filter(t => !t.is_approved && !t.is_admin);
   document.getElementById('approvalsList').innerHTML = pending.length
-    ? pending.map(t => `
-      <div class="approve-item">
-        <div class="approve-info">
-          <strong>${t.name}</strong>
-          <span>${t.email} · ${t.subject||'Fan ko\'rsatilmagan'}</span>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="toggleApprove('${t.id}',false)">Tasdiqlash</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteTeacher('${t.id}')">Rad etish</button>
-      </div>`)
-      .join('')
+    ? pending.map(t => {
+        const groups = allGroups.filter(g => g.teacher_id === t.id);
+        return `
+        <div class="approve-item">
+          <div class="approve-info">
+            <strong>${t.name}</strong>
+            <span>${t.email} · ${t.subject||'<span style="color:var(--amber)">Fan kiritilmagan</span>'}</span>
+            <span style="font-size:11px;color:var(--muted)">${groups.length ? groups.map(g=>g.name).join(', ') : '⚠️ Guruh biriktirilmagan'}</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="openEditTeacher('${t.id}')">✏️ Tahrirlash</button>
+          <button class="btn btn-primary btn-sm" onclick="toggleApprove('${t.id}',false)">✓ Tasdiqlash</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteTeacher('${t.id}')">Rad</button>
+        </div>`;}).join('')
     : '<div style="color:var(--muted);font-size:14px">Hamma tasdiqlangan ✓</div>';
 
-  // All teachers management
+  // Barcha o'qituvchilar boshqaruvi
   document.getElementById('teacherMgmtList').innerHTML = allTeachers
     .filter(t => !t.is_admin)
-    .map(t => `
+    .map(t => {
+      const groups = allGroups.filter(g => g.teacher_id === t.id);
+      return `
       <div class="approve-item">
         <div class="approve-info">
           <strong>${t.name}</strong>
-          <span>${t.email}</span>
+          <span>${t.email} · ${t.subject||'Fan yo\'q'}</span>
+          <span style="font-size:11px;color:var(--muted)">${groups.length ? '📚 '+groups.map(g=>g.name).join(', ') : '— Guruh yo\'q'}</span>
         </div>
         <span class="badge ${t.is_approved?'badge-green':'badge-amber'}">${t.is_approved?'Faol':'Kutmoqda'}</span>
+        <button class="btn btn-secondary btn-xs" onclick="openEditTeacher('${t.id}')">✏️ Tahrirlash</button>
         <button class="btn btn-secondary btn-xs" onclick="toggleApprove('${t.id}',${t.is_approved})">${t.is_approved?'Bloklash':'Faollashtirish'}</button>
-      </div>`)
+      </div>`;})
     .join('') || '<div style="color:var(--muted);font-size:13px">Hech kim yo\'q</div>';
+}
+
+function openEditTeacher(id) {
+  const t = allTeachers.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('etId').value      = id;
+  document.getElementById('etName').value    = t.name || '';
+  document.getElementById('etSubject').value = t.subject || '';
+  // Guruhlar checkboxlari
+  const wrap = document.getElementById('etGroupsWrap');
+  wrap.innerHTML = allGroups.map(g => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;background:var(--bg3);padding:5px 10px;border-radius:6px;border:1px solid var(--border)">
+      <input type="checkbox" name="etGrp" value="${g.id}" ${g.teacher_id===id?'checked':''}> 
+      <span class="color-dot" style="background:${g.color}"></span>${g.name}
+    </label>`).join('');
+  openM('editTeacher');
+}
+
+async function saveEditTeacher() {
+  const id      = document.getElementById('etId').value;
+  const name    = document.getElementById('etName').value.trim();
+  const subject = document.getElementById('etSubject').value.trim();
+  if (!name) { notify('Ism kerak', 'err'); return; }
+
+  // O'qituvchi ma'lumotlarini yangilash
+  await sb.from('teachers').update({ name, subject }).eq('id', id);
+
+  // Guruhlarni yangilash — avval bu o'qituvchidan guruhlarni olish
+  await sb.from('groups').update({ teacher_id: null, teacher_name: null }).eq('teacher_id', id);
+  const checked = [...document.querySelectorAll('input[name="etGrp"]:checked')];
+  if (checked.length) {
+    for (const c of checked) {
+      await sb.from('groups').update({ teacher_id: id, teacher_name: name }).eq('id', c.value);
+    }
+  }
+
+  closeM('editTeacher');
+  notify('O\'qituvchi ma\'lumotlari yangilandi!');
+  await loadAll();
 }
 
 // ============================================================
