@@ -120,25 +120,60 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <body>
 
 <!-- LOGIN -->
-<div id="loginPage">
-  <div class="login-box">
-    <div style="font-size:40px;margin-bottom:12px">📚</div>
-    <h1>Dasturlab Akademi</h1>
-    <p>O'qituvchi paneli</p>
-    <input class="inp" id="loginEmail" type="email" placeholder="Email">
-    <input class="inp" id="loginPass" type="password" placeholder="Parol" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Kirish</button>
-    <div class="err-msg" id="loginErr"></div>
-    <hr style="border-color:var(--border);margin:16px 0">
-    <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Birinchi marta kiryapsizmi?</p>
-    <button class="btn btn-secondary" style="width:100%" onclick="showSignup()">Ro'yxatdan o'tish</button>
-    <div id="signupBox" style="display:none;margin-top:16px;text-align:left">
-      <input class="inp" id="suName" placeholder="Ism Familiya">
-      <input class="inp" id="suEmail" type="email" placeholder="Email">
-      <input class="inp" id="suPass" type="password" placeholder="Parol (kamida 6 ta belgi)">
-      <button class="btn btn-primary" style="width:100%" onclick="doSignup()">Ro'yxatdan o'tish</button>
+<div id="loginPage" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px">
+  <a href="index.html" style="position:fixed;top:20px;left:20px;display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;text-decoration:none;padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card)">
+    ← Bosh sahifa
+  </a>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);width:100%;max-width:380px;overflow:hidden">
+    <!-- Header -->
+    <div style="padding:28px 28px 0;text-align:center">
+      <div style="font-size:36px;margin-bottom:8px">📚</div>
+      <div style="font-size:20px;font-weight:800;color:var(--purple)">Dasturlab Akademi</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;margin-bottom:20px">O'qituvchi paneli</div>
+      <!-- Tabs -->
+      <div style="display:flex;border-bottom:1px solid var(--border)">
+        <div id="tabKirish" onclick="switchTab('kirish')" style="flex:1;padding:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--purple);border-bottom:2px solid var(--purple);margin-bottom:-1px;text-align:center">Kirish</div>
+        <div id="tabRoyx" onclick="switchTab('royx')" style="flex:1;padding:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;text-align:center">Ro'yxatdan o'tish</div>
+      </div>
     </div>
-    <div style="margin-top:14px;font-size:12px;color:var(--muted)">Admin? <a href="admin.html">Admin panel →</a></div>
+
+    <!-- Kirish tab -->
+    <div id="panelKirish" style="padding:24px 28px 28px">
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">Email</label>
+        <input class="inp" id="loginEmail" type="email" placeholder="email@example.com" style="margin:0">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">Parol</label>
+        <input class="inp" id="loginPass" type="password" placeholder="••••••••" style="margin:0" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Kirish →</button>
+      <div class="err-msg" id="loginErr" style="text-align:center"></div>
+      <div style="margin-top:16px;text-align:center;font-size:12px;color:var(--muted)">
+        Admin? <a href="admin.html">Admin panel →</a>
+      </div>
+    </div>
+
+    <!-- Ro'yxatdan o'tish tab -->
+    <div id="panelRoyx" style="padding:24px 28px 28px;display:none">
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">Ism Familiya</label>
+        <input class="inp" id="suName" placeholder="Sarvar Karimov" style="margin:0">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">Email</label>
+        <input class="inp" id="suEmail" type="email" placeholder="email@example.com" style="margin:0">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">Parol</label>
+        <input class="inp" id="suPass" type="password" placeholder="Kamida 6 ta belgi" style="margin:0">
+      </div>
+      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#fcd34d;margin-bottom:16px">
+        ⏳ Ro'yxatdan o'tgach admin tasdiqlashini kuting
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="doSignup()">Ro'yxatdan o'tish →</button>
+      <div class="err-msg" id="signupErr" style="text-align:center"></div>
+    </div>
   </div>
 </div>
 
@@ -497,22 +532,29 @@ let checkingAnswerId = null;
 // ============================================================
 // AUTH
 // ============================================================
-function showSignup() {
-  const box = document.getElementById('signupBox');
-  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+function switchTab(tab) {
+  const isKirish = tab === 'kirish';
+  document.getElementById('panelKirish').style.display = isKirish ? 'block' : 'none';
+  document.getElementById('panelRoyx').style.display   = isKirish ? 'none' : 'block';
+  document.getElementById('tabKirish').style.color = isKirish ? 'var(--purple)' : 'var(--muted)';
+  document.getElementById('tabKirish').style.borderBottomColor = isKirish ? 'var(--purple)' : 'transparent';
+  document.getElementById('tabRoyx').style.color = isKirish ? 'var(--muted)' : 'var(--purple)';
+  document.getElementById('tabRoyx').style.borderBottomColor = isKirish ? 'transparent' : 'var(--purple)';
 }
 
 async function doSignup() {
   const name  = document.getElementById('suName').value.trim();
   const email = document.getElementById('suEmail').value.trim();
   const pass  = document.getElementById('suPass').value;
-  if (!name || !email || !pass) { notify('Barcha maydonlarni to\'ldiring', 'err'); return; }
-  if (pass.length < 6) { notify('Parol kamida 6 ta belgi', 'err'); return; }
+  const errEl = document.getElementById('signupErr');
+  errEl.textContent = '';
+  if (!name || !email || !pass) { errEl.textContent = 'Barcha maydonlarni to\'ldiring'; return; }
+  if (pass.length < 6) { errEl.textContent = 'Parol kamida 6 ta belgi'; return; }
   if (!sb) { await initSupabase(); }
 
   // Supabase Auth ga ro'yxatdan o'tish
   const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name } } });
-  if (error) { notify('Xato: ' + error.message, 'err'); return; }
+  if (error) { document.getElementById('signupErr').textContent = 'Xato: ' + error.message; return; }
 
   // teachers jadvalida bu email bormi tekshiramiz
   const { data: existing } = await sb.from('teachers').select('id,is_approved').eq('email', email).single();
