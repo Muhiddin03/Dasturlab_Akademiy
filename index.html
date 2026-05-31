@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dasturlab Akademi</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f0e1a;--bg2:#1a1829;--bg3:#241f38;
+  --card:#1e1c30;--border:#2e2a45;
+  --text:#e8e6f0;--muted:#8b87a8;--hint:#5a5675;
+  --purple:#7c6ff7;--purple2:#6355e8;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;
+  --radius:10px;--radius-lg:16px;
+}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;min-height:100vh}
+
+/* NAVBAR */
+.navbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+.nav-logo{font-weight:800;font-size:18px;color:var(--purple);margin-right:auto;display:flex;align-items:center;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius);border:none;cursor:pointer;font-size:14px;font-weight:600;transition:.15s}
+.btn-primary{background:var(--purple);color:#fff}.btn-primary:hover{background:var(--purple2)}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{border-color:var(--purple)}
+.btn-sm{padding:6px 14px;font-size:13px}
+.btn-xs{padding:4px 10px;font-size:12px}
+.inp{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-size:14px;outline:none}
+.inp:focus{border-color:var(--purple)}
+select.inp{cursor:pointer}
+textarea.inp{resize:vertical;min-height:100px}
+
+/* HERO */
+.hero{text-align:center;padding:64px 24px 48px;max-width:700px;margin:0 auto}
+.hero h1{font-size:38px;font-weight:900;margin-bottom:12px;line-height:1.2}
+.hero h1 span{color:var(--purple)}
+.hero p{font-size:16px;color:var(--muted);margin-bottom:32px;line-height:1.6}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* GROUPS GRID */
+.section{padding:0 24px 48px;max-width:1100px;margin:0 auto}
+.section-title{font-size:22px;font-weight:800;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.group-card{background:var(--card);border:1px solid var(--border);border-top:3px solid var(--purple);border-radius:var(--radius-lg);padding:20px;cursor:pointer;transition:.2s}
+.group-card:hover{transform:translateY(-2px);border-color:var(--purple);box-shadow:0 8px 30px rgba(124,111,247,.15)}
+.group-name{font-size:16px;font-weight:700;margin-bottom:4px}
+.group-sub{font-size:13px;color:var(--muted);margin-bottom:12px}
+.group-meta{font-size:12px;color:var(--hint);display:flex;gap:10px}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:16px}
+.overlay.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto}
+.modal-lg{max-width:700px}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:6px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.form-row{margin-bottom:14px}
+.form-label{font-size:12px;color:var(--muted);margin-bottom:5px;display:block;font-weight:600}
+
+/* TEST UI */
+.test-wrap{max-width:700px;margin:0 auto;padding:24px}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;margin-bottom:24px;overflow:hidden}
+.progress-fill{height:100%;background:var(--purple);border-radius:2px;transition:.3s}
+.q-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:16px}
+.q-num{font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600}
+.q-text{font-size:16px;font-weight:600;line-height:1.5;margin-bottom:20px}
+.opt-list{display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:.15s}
+.opt:hover{border-color:var(--purple);background:rgba(124,111,247,.05)}
+.opt.selected{border-color:var(--purple);background:rgba(124,111,247,.12)}
+.opt.correct{border-color:var(--green);background:rgba(34,197,94,.1)}
+.opt.wrong{border-color:var(--red);background:rgba(239,68,68,.1)}
+.opt-letter{width:28px;height:28px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.opt.selected .opt-letter{background:var(--purple);border-color:var(--purple);color:#fff}
+.opt.correct .opt-letter{background:var(--green);border-color:var(--green);color:#fff}
+.opt.wrong .opt-letter{background:var(--red);border-color:var(--red);color:#fff}
+.opt-text{font-size:14px;line-height:1.5;padding-top:4px}
+.written-area{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px;color:var(--text);font-size:14px;min-height:120px;resize:vertical;outline:none}
+.written-area:focus{border-color:var(--purple)}
+
+/* TIMER */
+.timer{display:flex;align-items:center;gap:6px;font-size:20px;font-weight:800;padding:8px 16px;border-radius:10px;background:var(--bg2);border:1px solid var(--border)}
+.timer.warn{color:var(--amber)}
+.timer.danger{color:var(--red);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* Q NAV */
+.q-nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.q-nav-btn{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
+.q-nav-btn.ans{border-color:var(--purple);background:rgba(124,111,247,.2);color:var(--purple)}
+.q-nav-btn.cur{border-color:var(--purple);background:var(--purple);color:#fff}
+
+/* RESULT */
+.result-card{text-align:center;padding:40px 24px;max-width:500px;margin:0 auto}
+.result-score{font-size:64px;font-weight:900;color:var(--purple)}
+.result-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:20px;font-weight:700;font-size:15px;margin:12px 0}
+.result-stats{display:flex;justify-content:center;gap:24px;margin:20px 0;flex-wrap:wrap}
+.result-stat{text-align:center}
+.result-stat-val{font-size:22px;font-weight:800}
+.result-stat-lbl{font-size:12px;color:var(--muted)}
+.score-ring{width:120px;height:120px;margin:0 auto 16px}
+
+/* STEP INDICATOR */
+.step-bar{display:flex;align-items:center;gap:8px;margin-bottom:24px}
+.step{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid var(--border);color:var(--muted)}
+.step.active{border-color:var(--purple);background:var(--purple);color:#fff}
+.step.done{border-color:var(--green);background:var(--green);color:#fff}
+.step-line{flex:1;height:2px;background:var(--border)}
+.step-line.done{background:var(--green)}
+
+/* LOGIN DROPDOWN */
+.login-dropdown{position:absolute;top:64px;right:24px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:280px;z-index:300;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.badge-green{background:rgba(34,197,94,.15);color:#86efac}
+.badge-amber{background:rgba(245,158,11,.15);color:#fcd34d}
+.badge-blue{background:rgba(59,130,246,.15);color:#93c5fd}
+
+/* NOTIF */
+#notifWrap{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.notif{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:13px;display:flex;align-items:center;gap:8px;min-width:240px;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.notif.err{border-color:rgba(239,68,68,.4);background:rgba(127,29,29,.3)}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--muted);gap:12px;font-size:15px}
+.spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:600px){
+  .hero h1{font-size:26px}
+  .section{padding:0 16px 32px}
+  .navbar{padding:0 16px}
+  .test-wrap{padding:16px}
+  .q-text{font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-logo">🎓 Dasturlab Akademi</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <a href="teacher.html" class="btn btn-secondary btn-sm">O'qituvchi</a>
+    <a href="admin.html" class="btn btn-secondary btn-sm">Admin</a>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div id="mainContent">
+  <!-- HERO -->
+  <div class="hero">
+    <h1>Bilimingizni <span>sinab ko'ring</span></h1>
+    <p>Dasturlab Akademi — onlayn test tizimi. Guruhingizni toping va testni boshlang.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary" onclick="scrollToGroups()">Guruhlarni ko'rish</button>
+      <button class="btn btn-secondary" onclick="openTestByCode()">Kod orqali kirish</button>
+    </div>
+  </div>
+
+  <!-- GROUPS -->
+  <div class="section">
+    <div class="section-title">📚 Guruhlar</div>
+    <div id="groupsWrap">
+      <div class="loading"><div class="spinner"></div> Yuklanmoqda...</div>
+    </div>
+  </div>
+</div>
+
+<!-- TEST PAGE (hidden until started) -->
+<div id="testPage" style="display:none">
+  <div class="test-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:18px;font-weight:700" id="testTitle">Test</div>
+        <div style="font-size:13px;color:var(--muted)" id="testSubtitle"></div>
+      </div>
+      <div class="timer" id="timerEl">⏱ --:--</div>
+    </div>
+    <div class="q-nav" id="qNavWrap"></div>
+    <div id="questionsWrap"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:16px">
+      <button class="btn btn-secondary" id="prevBtn" onclick="goQ(-1)">← Oldingi</button>
+      <button class="btn btn-primary" id="nextBtn" onclick="goQ(1)">Keyingi →</button>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <button class="btn btn-primary" onclick="confirmSubmit()" style="min-width:160px">✅ Topshirish</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT PAGE -->
+<div id="resultPage" style="display:none">
+  <div class="result-card">
+    <div id="resultContent"></div>
+    <button class="btn btn-secondary" style="margin-top:24px" onclick="goHome()">← Bosh sahifa</button>
+  </div>
+</div>
+
+<!-- WRITTEN RESULT -->
+<div id="writtenResultPage" style="display:none">
+  <div class="result-card">
+    <div style="font-size:48px;margin-bottom:16px">📝</div>
+    <h2 style="margin-bottom:8px">Javoblaringiz yuborildi!</h2>
+    <p style="color:var(--muted);margin-bottom:24px">O'qituvchi tekshirib, natijangizni e'lon qiladi. Kuting.</p>
+    <button class="btn btn-secondary" onclick="goHome()">← Bosh sahifa</button>
+  </div>
+</div>
+
+<!-- MODAL: GROUP STUDENTS -->
+<div class="overlay" id="ov-groupStudents">
+  <div class="modal">
+    <div class="modal-title" id="gsTitle">Guruh</div>
+    <div class="modal-sub" id="gsSub"></div>
+    <div id="gsContent"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeOv('groupStudents')">Yopish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ENTER NAME (test boshlash) -->
+<div class="overlay" id="ov-enterName">
+  <div class="modal" style="max-width:440px">
+    <div class="step-bar" style="margin-bottom:20px">
+      <div class="step done" id="step1">1</div>
+      <div class="step-line done"></div>
+      <div class="step active" id="step2">2</div>
+      <div class="step-line"></div>
+      <div class="step" id="step3">3</div>
+    </div>
+    <div class="modal-title" id="enTitle">Test boshlash</div>
+    <div class="modal-sub" id="enSub"></div>
+    <div class="form-row">
+      <label class="form-label">Ismingiz</label>
+      <input class="inp" id="enFirst" placeholder="Ism">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Familiyangiz</label>
+      <input class="inp" id="enLast" placeholder="Familiya" onkeydown="if(event.key==='Enter')startTest()">
+    </div>
+    <div id="enWarning" style="display:none;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#fcd34d;margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeOv('enterName')">Bekor</button>
+      <button class="btn btn-primary" onclick="startTest()">Testni boshlash →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CODE ENTRY -->
+<div class="overlay" id="ov-codeEntry">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div style="font-size:36px;margin-bottom:12px">🔑</div>
+    <div class="modal-title">Test kodi</div>
+    <div class="modal-sub">O'qituvchi bergan 6 ta belgili kodni kiriting</div>
+    <input class="inp" id="codeInp" placeholder="Masalan: ABC123" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:20px;font-weight:700" maxlength="6" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')findByCode()">
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeOv('codeEntry')">Bekor</button>
+      <button class="btn btn-primary" onclick="findByCode()">Topish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ALREADY DONE -->
+<div class="overlay" id="ov-alreadyDone">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">⛔</div>
+    <div class="modal-title">Allaqachon topshirilgan</div>
+    <div id="adContent" style="color:var(--muted);font-size:14px;margin-bottom:20px"></div>
+    <button class="btn btn-secondary" onclick="closeOv('alreadyDone')">Yopish</button>
+  </div>
+</div>
+
+<div id="notifWrap"></div>
+
+<script>
+// ============================================================
+// SUPABASE INIT
+// ============================================================
+const { createClient } = supabase;
+let sb = null;
+
+async function initSupabase() {
+  if (window.SUPABASE_CONFIG?.url && !window.SUPABASE_CONFIG.url.includes('YOUR')) {
+    sb = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
+    return;
+  }
+  try {
+    const r = await fetch('/api/env');
+    const e = await r.json();
+    if (e.url && e.key) sb = createClient(e.url, e.key);
+  } catch(e) {}
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let allGroups = [], allTests = [], allStudents = [], allStudentGroups = [];
+let currentTest = null, currentQuestions = [], state = {};
+let timerInterval = null;
+let selectedGroupId = null;
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', async () => {
+  await initSupabase();
+  // Check URL for /t/CODE
+  const m = location.pathname.match(/\/t\/([A-Z0-9]{4,8})/i);
+  if (m) { await loadTestByCode(m[1].toUpperCase()); return; }
+  await loadGroups();
+});
+
+// ============================================================
+// GROUPS
+// ============================================================
+async function loadGroups() {
+  const { data: groups } = await sb.from('groups').select('*').eq('is_active', true).order('name');
+  allGroups = groups || [];
+  const { data: tests } = await sb.from('tests').select('id,group_id,status,name,test_type,time_limit').eq('status','active');
+  allTests = tests || [];
+  renderGroups();
+}
+
+function renderGroups() {
+  const wrap = document.getElementById('groupsWrap');
+  if (!allGroups.length) {
+    wrap.innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px">Hozircha guruhlar yo\'q</div>';
+    return;
+  }
+  wrap.innerHTML = `<div class="groups-grid">${allGroups.map(g => {
+    const tests = allTests.filter(t => t.group_id === g.id);
+    return `
+      <div class="group-card" style="border-top-color:${g.color}" onclick="openGroup('${g.id}')">
+        <div class="group-name">${g.name}</div>
+        <div class="group-sub">${g.subject||''} ${g.level?'· '+g.level:''}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">👤 ${g.teacher_name||'O\'qituvchi'}</div>
+        <div class="group-meta">
+          <span>📝 ${tests.length} faol test</span>
+        </div>
+      </div>`;
+  }).join('')}</div>`;
+}
+
+async function openGroup(gid) {
+  selectedGroupId = gid;
+  const g = allGroups.find(x => x.id === gid);
+  const tests = allTests.filter(t => t.group_id === gid);
+  document.getElementById('gsTitle').textContent = g.name;
+  document.getElementById('gsSub').textContent = `${g.subject||''} · O'qituvchi: ${g.teacher_name||'—'}`;
+
+  if (!tests.length) {
+    document.getElementById('gsContent').innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)">Hozircha faol testlar yo\'q</div>';
+    openOv('groupStudents');
+    return;
+  }
+
+  document.getElementById('gsContent').innerHTML = `
+    <div style="margin-bottom:12px;font-size:13px;color:var(--muted)">Faol testlar:</div>
+    ${tests.map(t => `
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <div style="font-weight:600;margin-bottom:4px">${t.name}</div>
+          <div style="font-size:12px;color:var(--muted)">
+            <span class="badge ${t.test_type==='multiple'?'badge-blue':t.test_type==='written'?'badge-amber':'badge-blue'}">${t.test_type==='multiple'?'Variantli':t.test_type==='written'?'Yozma':'Aralash'}</span>
+            ⏱ ${t.time_limit} daqiqa
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="prepareTest('${t.id}');closeOv('groupStudents')">Boshlash →</button>
+      </div>`).join('')}
+  `;
+  openOv('groupStudents');
+}
+
+// ============================================================
+// TEST BY CODE
+// ============================================================
+function openTestByCode() { openOv('codeEntry'); }
+
+async function findByCode() {
+  const code = document.getElementById('codeInp').value.trim().toUpperCase();
+  if (code.length < 4) { notify('Kodni to\'liq kiriting', 'err'); return; }
+  await loadTestByCode(code);
+  if (currentTest) closeOv('codeEntry');
+}
+
+async function loadTestByCode(code) {
+  const { data: test } = await sb.from('tests').select('*').eq('short_code', code).single();
+  if (!test) { notify('Test topilmadi', 'err'); return; }
+  if (test.status !== 'active') { notify('Bu test hozir faol emas', 'err'); return; }
+
+  // Vaqt oynasini tekshirish
+  const now = new Date();
+  if (test.open_from && new Date(test.open_from) > now) {
+    notify(`Test ${new Date(test.open_from).toLocaleString('uz-UZ')} da ochiladi`, 'err'); return;
+  }
+  if (test.open_until && new Date(test.open_until) < now) {
+    notify('Testning vaqti tugagan', 'err'); return;
+  }
+
+  currentTest = test;
+  const { data: questions } = await sb.from('questions').select('*').eq('test_id', test.id).order('order_num');
+  currentQuestions = questions || [];
+  prepareTest(test.id);
+}
+
+// ============================================================
+// PREPARE TEST (ismni so'rash)
+// ============================================================
+async function prepareTest(testId) {
+  if (!currentTest || currentTest.id !== testId) {
+    const { data: test } = await sb.from('tests').select('*').eq('id', testId).single();
+    currentTest = test;
+    const { data: questions } = await sb.from('questions').select('*').eq('test_id', testId).order('order_num');
+    currentQuestions = questions || [];
+  }
+  document.getElementById('enTitle').textContent = currentTest.name;
+  document.getElementById('enSub').textContent = `⏱ ${currentTest.time_limit} daqiqa · ${currentQuestions.length} ta savol`;
+  document.getElementById('enFirst').value = '';
+  document.getElementById('enLast').value = '';
+  document.getElementById('enWarning').style.display = 'none';
+  openOv('enterName');
+}
+
+// ============================================================
+// START TEST
+// ============================================================
+async function startTest() {
+  const first = document.getElementById('enFirst').value.trim();
+  const last  = document.getElementById('enLast').value.trim();
+  if (!first || !last) { notify('Ism va familiyangizni kiriting', 'err'); return; }
+  const fullName = last + ' ' + first;
+
+  // Takror topshirgan-topshirmaganligini tekshirish
+  const { data: existing } = await sb.from('results')
+    .select('*').eq('test_id', currentTest.id)
+    .ilike('student_name', fullName);
+  const { data: existingW } = await sb.from('written_answers')
+    .select('*').eq('test_id', currentTest.id)
+    .ilike('student_name', fullName);
+
+  if ((existing?.length || existingW?.length)) {
+    const r = existing?.[0] || existingW?.[0];
+    document.getElementById('adContent').innerHTML = `
+      <strong>${fullName}</strong> bu testni allaqachon topshirgan.<br><br>
+      ${r.percent !== undefined ? `Ball: <strong style="color:var(--purple)">${r.score}/${r.total} (${r.percent}%)</strong>` : 'Yozma javob tekshirilmoqda.'}
+    `;
+    closeOv('enterName');
+    openOv('alreadyDone');
+    return;
+  }
+
+  closeOv('enterName');
+
+  // Savollarni aralashtirish
+  let questions = [...currentQuestions];
+  if (currentTest.shuffle_questions) questions = shuffle(questions);
+  if (currentTest.shuffle_options) {
+    questions = questions.map(q => {
+      if (q.question_type !== 'multiple' || !q.options) return q;
+      const indexed = q.options.map((o, i) => ({ o, correct: i === q.correct_index }));
+      shuffleArr(indexed);
+      return { ...q, options: indexed.map(x => x.o), correct_index: indexed.findIndex(x => x.correct) };
+    });
+  }
+
+  state = {
+    studentName: fullName,
+    questions,
+    answers: {},    // {question_id: chosen_index or text}
+    current: 0,
+    startedAt: Date.now(),
+    timeLeft: currentTest.time_limit * 60
+  };
+
+  showTestUI();
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function shuffleArr(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+// ============================================================
+// TEST UI
+// ============================================================
+function showTestUI() {
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('testPage').style.display = 'block';
+  document.getElementById('testTitle').textContent = currentTest.name;
+  document.getElementById('testSubtitle').textContent = `${state.studentName} · ${state.questions.length} ta savol`;
+  renderQuestion();
+  startTimer();
+}
+
+function renderQuestion() {
+  const idx = state.current;
+  const q   = state.questions[idx];
+  const total = state.questions.length;
+
+  // Progress bar
+  document.querySelector('.progress-bar')?.remove();
+  const pb = `<div class="progress-bar"><div class="progress-fill" style="width:${Math.round((idx)/total*100)}%"></div></div>`;
+
+  // Q Nav
+  document.getElementById('qNavWrap').innerHTML = state.questions.map((q, i) => {
+    const ans = state.answers[q.id] !== undefined && state.answers[q.id] !== '';
+    return `<button class="q-nav-btn${i===idx?' cur':ans?' ans':''}" onclick="goToQ(${i})">${i+1}</button>`;
+  }).join('');
+
+  // Question card
+  const isMultiple = q.question_type === 'multiple';
+  const letters = ['A','B','C','D'];
+  document.getElementById('questionsWrap').innerHTML = pb + `
+    <div class="q-card">
+      <div class="q-num">Savol ${idx+1} / ${total}</div>
+      <div class="q-text">${q.question_text}</div>
+      ${isMultiple
+        ? `<div class="opt-list">${(q.options||[]).map((opt, i) => `
+            <div class="opt${state.answers[q.id]===i?' selected':''}" onclick="selectOpt(${i})">
+              <div class="opt-letter">${letters[i]}</div>
+              <div class="opt-text">${opt}</div>
+            </div>`).join('')}</div>`
+        : `<textarea class="written-area" id="writtenAns" placeholder="Javobingizni shu yerga yozing..." oninput="saveWritten(this.value)">${state.answers[q.id]||''}</textarea>`
+      }
+    </div>`;
+
+  // Prev/Next buttons
+  document.getElementById('prevBtn').disabled = idx === 0;
+  document.getElementById('nextBtn').style.display = idx === total - 1 ? 'none' : 'inline-flex';
+}
+
+function selectOpt(i) {
+  const q = state.questions[state.current];
+  state.answers[q.id] = i;
+  renderQuestion();
+}
+
+function saveWritten(val) {
+  const q = state.questions[state.current];
+  state.answers[q.id] = val;
+  // Update nav button
+  document.querySelectorAll('.q-nav-btn')[state.current]?.classList.toggle('ans', val.trim() !== '');
+}
+
+function goQ(dir) {
+  state.current = Math.max(0, Math.min(state.questions.length - 1, state.current + dir));
+  renderQuestion();
+}
+
+function goToQ(i) {
+  state.current = i;
+  renderQuestion();
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    state.timeLeft--;
+    updateTimerUI();
+    if (state.timeLeft <= 0) { clearInterval(timerInterval); submitTest(); }
+  }, 1000);
+  updateTimerUI();
+}
+
+function updateTimerUI() {
+  const m = Math.floor(state.timeLeft / 60);
+  const s = state.timeLeft % 60;
+  const el = document.getElementById('timerEl');
+  el.textContent = `⏱ ${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  el.className = 'timer' + (state.timeLeft <= 60 ? ' danger' : state.timeLeft <= 180 ? ' warn' : '');
+}
+
+// ============================================================
+// SUBMIT
+// ============================================================
+function confirmSubmit() {
+  const unanswered = state.questions.filter(q => state.answers[q.id] === undefined || state.answers[q.id] === '').length;
+  if (unanswered > 0) {
+    if (!confirm(`${unanswered} ta savol javobsiz qoldi. Baribir topshirasizmi?`)) return;
+  }
+  submitTest();
+}
+
+async function submitTest() {
+  clearInterval(timerInterval);
+  const timeTaken = Math.round((Date.now() - state.startedAt) / 60000);
+  const month = new Date().getFullYear() + '-' + (new Date().getMonth() + 1).toString().padStart(2, '0');
+
+  const multipleQs = state.questions.filter(q => q.question_type === 'multiple');
+  const writtenQs  = state.questions.filter(q => q.question_type === 'written');
+  const hasMultiple = multipleQs.length > 0;
+  const hasWritten  = writtenQs.length > 0;
+
+  // Variantli hisoblash
+  if (hasMultiple) {
+    let score = 0, total = 0;
+    multipleQs.forEach(q => { total += q.max_score || 1; if (state.answers[q.id] === q.correct_index) score += q.max_score || 1; });
+    const percent = total ? Math.round(score / total * 100) : 0;
+    const answers = {};
+    multipleQs.forEach(q => { answers[q.id] = state.answers[q.id]; });
+
+    // student_id topish
+    const { data: stuData } = await sb.from('students').select('id')
+      .ilike('last_name', state.studentName.split(' ')[0])
+      .ilike('first_name', state.studentName.split(' ').slice(1).join(' '));
+    const stuId = stuData?.[0]?.id || null;
+
+    await sb.from('results').insert({
+      test_id: currentTest.id, student_id: stuId, student_name: state.studentName,
+      score, total, percent, time_taken: timeTaken, answers, month
+    });
+
+    if (!hasWritten) {
+      showResult(score, total, percent, timeTaken, multipleQs);
+      return;
+    }
+  }
+
+  // Yozma javoblar
+  if (hasWritten) {
+    const answers = {};
+    writtenQs.forEach(q => { answers[q.id] = state.answers[q.id] || ''; });
+    const { data: stuData } = await sb.from('students').select('id')
+      .ilike('last_name', state.studentName.split(' ')[0])
+      .ilike('first_name', state.studentName.split(' ').slice(1).join(' '));
+    const stuId = stuData?.[0]?.id || null;
+    const month = new Date().getFullYear() + '-' + (new Date().getMonth()+1).toString().padStart(2,'0');
+
+    await sb.from('written_answers').insert({
+      test_id: currentTest.id, student_id: stuId, student_name: state.studentName,
+      answers, status: 'pending', month
+    });
+
+    document.getElementById('testPage').style.display = 'none';
+    document.getElementById('writtenResultPage').style.display = 'block';
+  }
+}
+
+function showResult(score, total, percent, timeTaken, questions) {
+  document.getElementById('testPage').style.display = 'none';
+  const page = document.getElementById('resultPage');
+  page.style.display = 'block';
+
+  const grade = percent >= 85 ? "A'lo ⭐" : percent >= 70 ? 'Yaxshi 👍' : percent >= 50 ? 'Qoniqarli 😊' : 'Qoniqarsiz 😔';
+  const gradeColor = percent >= 85 ? 'var(--green)' : percent >= 70 ? 'var(--blue)' : percent >= 50 ? 'var(--amber)' : 'var(--red)';
+
+  // Show answers review if enabled
+  let reviewHtml = '';
+  if (currentTest.show_results) {
+    const letters = ['A','B','C','D'];
+    reviewHtml = `
+      <div style="text-align:left;margin-top:28px">
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px">Javoblar tahlili:</div>
+        ${questions.map((q, i) => {
+          const chosen = state.answers[q.id];
+          const correct = q.correct_index;
+          const isRight = chosen === correct;
+          return `
+            <div style="background:var(--bg3);border:1px solid ${isRight?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)'};border-radius:10px;padding:14px;margin-bottom:8px">
+              <div style="font-size:13px;font-weight:600;margin-bottom:8px">${i+1}. ${q.question_text}</div>
+              ${(q.options||[]).map((opt, j) => {
+                let cls = '';
+                if (j === correct) cls = 'color:var(--green);font-weight:700';
+                if (j === chosen && j !== correct) cls = 'color:var(--red)';
+                return `<div style="font-size:13px;padding:3px 0;${cls}">
+                  ${letters[j]}. ${opt} ${j===correct?'✓':''} ${j===chosen&&j!==correct?'✗':''}
+                </div>`;
+              }).join('')}
+            </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  document.getElementById('resultContent').innerHTML = `
+    <div style="font-size:64px;font-weight:900;color:${gradeColor}">${percent}%</div>
+    <div style="font-size:18px;margin:8px 0;color:${gradeColor}">${grade}</div>
+    <div class="result-stats">
+      <div class="result-stat"><div class="result-stat-val">${score}/${total}</div><div class="result-stat-lbl">Ball</div></div>
+      <div class="result-stat"><div class="result-stat-val">${timeTaken}</div><div class="result-stat-lbl">Daqiqa</div></div>
+      <div class="result-stat"><div class="result-stat-val">${questions.filter(q=>state.answers[q.id]===q.correct_index).length}</div><div class="result-stat-lbl">To'g'ri</div></div>
+      <div class="result-stat"><div class="result-stat-val">${questions.filter(q=>state.answers[q.id]!==q.correct_index).length}</div><div class="result-stat-lbl">Noto'g'ri</div></div>
+    </div>
+    <div style="color:var(--muted);font-size:13px">${state.studentName}</div>
+    ${reviewHtml}`;
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function scrollToGroups() {
+  document.querySelector('.section')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+function goHome() {
+  clearInterval(timerInterval);
+  document.getElementById('testPage').style.display = 'none';
+  document.getElementById('resultPage').style.display = 'none';
+  document.getElementById('writtenResultPage').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  currentTest = null; state = {};
+  history.replaceState(null, '', '/');
+}
+
+function openOv(name)  { document.getElementById('ov-'+name).classList.add('open'); }
+function closeOv(name) { document.getElementById('ov-'+name).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
+});
+
+function notify(msg, type='success') {
+  const wrap = document.getElementById('notifWrap');
+  const el = document.createElement('div');
+  el.className = 'notif' + (type==='err'?' err':'');
+  el.innerHTML = `<span>${type==='success'?'✅':'❌'}</span> ${msg}`;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3500);
+}
+</script>
+</body>
+</html>
