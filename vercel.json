@@ -1,7 +1,7 @@
 {
   "rewrites": [
-    { "source": "/t/:code", "destination": "/test.html" },
-    { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/", "destination": "/admin.html" }
+    { "source": "/t/:code", "destination": "/index.html" },
+    { "source": "/teacher", "destination": "/teacher.html" },
+    { "source": "/admin", "destination": "/admin.html" }
   ]
 }
