@@ -398,8 +398,9 @@ textarea.inp{resize:vertical;min-height:80px}
       <input class="inp" id="tName" placeholder="To'liq ism"></div>
     <div class="form-row"><label class="form-label">Email</label>
       <input class="inp" id="tEmail" type="email" placeholder="email@example.com"></div>
-    <div class="form-row"><label class="form-label">Parol (kamida 6 ta belgi)</label>
-      <input class="inp" id="tPass" type="password" placeholder="Yangi parol"></div>
+    <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#93c5fd;margin-bottom:12px">
+      ℹ️ O'qituvchi <strong>teacher.html</strong> sahifasida o'zi ro'yxatdan o'tadi. Siz faqat ma'lumotlarini kiritasiz va tasdiqlaysiz.
+    </div>
     <div class="form-row"><label class="form-label">Fan</label>
       <input class="inp" id="tSubject" placeholder="Matematika, Ingliz tili..."></div>
     <div class="form-row"><label class="form-label">Guruh biriktirish (ixtiyoriy)</label>
@@ -789,30 +790,28 @@ function renderTeachers() {
 async function saveTeacher() {
   const name    = document.getElementById('tName').value.trim();
   const email   = document.getElementById('tEmail').value.trim();
-  const pass    = document.getElementById('tPass').value;
   const subject = document.getElementById('tSubject').value.trim();
   const groupId = document.getElementById('tGroup').value;
-  if (!name || !email || !pass) { notify('Ism, email va parol majburiy', 'err'); return; }
-  if (pass.length < 6) { notify('Parol kamida 6 ta belgi bo\'lishi kerak', 'err'); return; }
+  if (!name || !email) { notify('Ism va email majburiy', 'err'); return; }
 
-  // Supabase Auth orqali yaratish
-  const { data: authData, error: authErr } = await sb.auth.admin.createUser({
-    email, password: pass, email_confirm: true,
-    user_metadata: { name }
-  });
-  if (authErr) { notify('Xato: ' + authErr.message, 'err'); return; }
+  // Avval bu email allaqachon bormi tekshiramiz
+  const { data: existing } = await sb.from('teachers').select('id').eq('email', email).single();
+  if (existing) { notify('Bu email allaqachon mavjud', 'err'); return; }
 
-  // Teachers jadvalini yangilash
-  await sb.from('teachers').upsert({
-    id: authData.user.id, email, name, subject, is_approved: true, is_admin: false
-  });
+  // teachers jadvaliga qo'shamiz (auth.signUp kerak emas)
+  // O'qituvchi o'zi teacher.html da ro'yxatdan o'tadi
+  const { data, error } = await sb.from('teachers').insert({
+    email, name, subject, is_approved: true, is_admin: false
+  }).select().single();
 
-  if (groupId) {
-    await sb.from('groups').update({ teacher_id: authData.user.id, teacher_name: name }).eq('id', groupId);
+  if (error) { notify('Xato: ' + error.message, 'err'); return; }
+
+  if (groupId && data?.id) {
+    await sb.from('groups').update({ teacher_id: data.id, teacher_name: name }).eq('id', groupId);
   }
 
   closeM('addTeacher');
-  notify('O\'qituvchi qo\'shildi!');
+  notify('O\'qituvchi qo\'shildi! Endi o\'qituvchi teacher.html da ro\'yxatdan o\'tishi kerak.');
   await loadAll();
 }
 
