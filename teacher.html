@@ -992,8 +992,14 @@ let jhSelectedDate = ''; // history da tanlangan kun
 function switchJTab(tab) {
   ['enter','history','stats'].forEach(t => {
     document.getElementById('jtab-'+t).classList.toggle('active', t===tab);
-    document.getElementById('jpanel-'+t).style.display = t===tab?'block':'none';
+    document.getElementById('jpanel-'+t).style.display = t===tab ? 'block' : 'none';
   });
+  if (tab==='history') {
+    const w = document.getElementById('jhDaysList');
+    const d = document.getElementById('jhDayDetail');
+    if (w && !w.innerHTML.trim()) w.innerHTML = '<div style="color:var(--muted);font-size:13px">Guruh va oy tanlab Ko'rish tugmasini bosing</div>';
+    if (d) d.innerHTML = '';
+  }
 }
 
 function renderJournalGroupSel() {
@@ -1123,14 +1129,19 @@ async function saveJournal() {
 
 // ---- JURNAL TARIXI ----
 async function loadJournalHistory() {
+  // Tab ko'rinadigan qilamiz avval
+  document.getElementById('jpanel-history').style.display = 'block';
+
   const gid   = document.getElementById('jhGroupSel')?.value;
   const month = document.getElementById('jhMonth')?.value;
   const wrap  = document.getElementById('jhDaysList');
   const detail= document.getElementById('jhDayDetail');
-  if(!gid){ notify('Guruh tanlang','err'); return; }
 
-  wrap.innerHTML  = '<div style="color:var(--muted);font-size:13px">Yuklanmoqda...</div>';
-  detail.innerHTML= '';
+  if (!wrap || !detail) { notify('Sahifa yuklanmagan, qayta bosing','err'); return; }
+  if (!gid) { notify('Guruh tanlang','err'); return; }
+
+  wrap.innerHTML  = '<div style="color:var(--muted);font-size:13px">⏳ Yuklanmoqda...</div>';
+  detail.innerHTML = '';
   jhSelectedDate  = '';
 
   const from = month ? month+'-01' : null;
@@ -1448,201 +1459,6 @@ async function saveJournal() {
   const { error } = await sb.from('journal_entries').upsert(rows, { onConflict:'group_id,student_id,lesson_date' });
   if (error) { notify('Saqlashda xato: ' + error.message, 'err'); return; }
   notify('Jurnal saqlandi! ✅');
-}
-
-// ---- JURNAL TARIXI ----
-async function loadJournalHistory() {
-  const gid   = document.getElementById('jhGroupSel')?.value;
-  const month = document.getElementById('jhMonth')?.value;
-  if (!gid) { notify('Guruh tanlang', 'err'); return; }
-
-  document.getElementById('journalHistoryWrap').innerHTML =
-    '<div style="color:var(--muted);text-align:center;padding:40px"><div class="spinner" style="margin:0 auto 10px"></div>Yuklanmoqda...</div>';
-
-  const from = month ? month + '-01' : null;
-  const to   = month ? month + '-31' : null;
-
-  let q = sb.from('journal_entries').select('*').eq('group_id', gid).order('lesson_date', { ascending: false });
-  if (from && to) q = q.gte('lesson_date', from).lte('lesson_date', to);
-  const { data: entries, error } = await q;
-
-  if (error) { notify('Xato: ' + error.message, 'err'); return; }
-
-  if (!entries?.length) {
-    document.getElementById('journalHistoryWrap').innerHTML =
-      '<div style="color:var(--muted);text-align:center;padding:40px">📭 Bu davrda yozuvlar yo\'q</div>';
-    return;
-  }
-
-  const cats     = myCategories.filter(c => c.group_id === gid || !c.group_id);
-  const students = myStudents.filter(s => s.groupIds?.includes(gid)).sort((a,b)=>a.last_name.localeCompare(b.last_name));
-  const dates    = [...new Set(entries.map(e => e.lesson_date))].sort().reverse();
-  const g        = myGroups.find(x => x.id === gid);
-
-  const attIcon  = { present:'✅', absent:'❌', late:'🕐', excused:'📋' };
-  const attLabel = { present:'Keldi', absent:'Kelmadi', late:'Kech keldi', excused:'Sababli' };
-  const attColor = { present:'#86efac', absent:'#fca5a5', late:'#fcd34d', excused:'#93c5fd' };
-
-  document.getElementById('journalHistoryWrap').innerHTML = `
-    <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--muted)">
-        <strong style="color:var(--text)">${g?.name}</strong> · ${dates.length} ta dars kuni · ${entries.length} ta yozuv
-      </div>
-    </div>
-    ${dates.map(date => {
-      const dayEntries = entries.filter(e => e.lesson_date === date);
-      const present = dayEntries.filter(e=>e.attendance==='present').length;
-      const absent  = dayEntries.filter(e=>e.attendance==='absent').length;
-      const late    = dayEntries.filter(e=>e.attendance==='late').length;
-      const excused = dayEntries.filter(e=>e.attendance==='excused').length;
-      const dateStr = new Date(date + 'T00:00:00').toLocaleDateString('uz-UZ', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-
-      return `
-        <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden" id="jday-${date}">
-          <div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-            <div>
-              <div style="font-weight:700;font-size:14px">📅 ${dateStr}</div>
-              <div style="display:flex;gap:10px;font-size:12px;margin-top:3px;flex-wrap:wrap">
-                ${present ? `<span style="color:#86efac">✅ ${present} keldi</span>` : ''}
-                ${absent  ? `<span style="color:#fca5a5">❌ ${absent} kelmadi</span>` : ''}
-                ${late    ? `<span style="color:#fcd34d">🕐 ${late} kech</span>` : ''}
-                ${excused ? `<span style="color:#93c5fd">📋 ${excused} sababli</span>` : ''}
-              </div>
-            </div>
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-secondary btn-xs" onclick="editJournalDay('${gid}','${date}')">✏️ Tahrirlash</button>
-              <button class="btn btn-danger btn-xs" onclick="deleteJournalDay('${gid}','${date}')">🗑 O'chirish</button>
-            </div>
-          </div>
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:13px">
-              <thead>
-                <tr style="background:var(--bg)">
-                  <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap">#  O'quvchi</th>
-                  <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">Davomat</th>
-                  ${cats.map(c=>`<th style="text-align:center;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap">${c.name}<br><span style="font-size:10px;font-weight:400">/${c.max_score}</span></th>`).join('')}
-                  <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">Izoh</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${students.map((s,i) => {
-                  const e = dayEntries.find(x => x.student_id === s.id);
-                  if (!e) return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
-                    <td colspan="${3+cats.length}" style="padding:8px 12px;color:var(--hint)">
-                      ${i+1}. ${s.last_name} ${s.first_name} <span style="font-size:11px">— kiritilmagan</span>
-                    </td></tr>`;
-                  return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
-                    <td style="padding:8px 12px;font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
-                    <td style="padding:8px 12px">
-                      <span style="color:${attColor[e.attendance]}">${attIcon[e.attendance]} ${attLabel[e.attendance]}</span>
-                    </td>
-                    ${cats.map(c=>`<td style="padding:8px 12px;text-align:center;font-weight:700;color:var(--purple)">${(e.grades||{})[c.id]??'—'}</td>`).join('')}
-                    <td style="padding:8px 12px;color:var(--muted);font-size:12px">${e.note||'—'}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>`;
-    }).join('')}`;
-}
-
-// Jurnal kunini tahrirlash — "Dars kiritish" tabiga o'tib shu sanani ochadi
-function editJournalDay(gid, date) {
-  // Guruh va sanani o'rnatish
-  document.getElementById('jGroupSel').value = gid;
-  document.getElementById('jDate').value = date;
-  // "Dars kiritish" tabiga o'tish
-  switchJTab('enter');
-  loadJournal();
-  // Sidebar ham yangilash
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelector('[data-page="journal"]')?.classList.add('active');
-  notify('Tahrirlash uchun sana yuklandi ✏️');
-}
-
-// Jurnal kunini o'chirish
-async function deleteJournalDay(gid, date) {
-  const dateStr = new Date(date + 'T00:00:00').toLocaleDateString('uz-UZ', {weekday:'long', day:'numeric', month:'long'});
-  if (!confirm(`"${dateStr}" kungi barcha yozuvlarni o'chirishni tasdiqlaysizmi?`)) return;
-  const { error } = await sb.from('journal_entries').delete().eq('group_id', gid).eq('lesson_date', date);
-  if (error) { notify('Xato: ' + error.message, 'err'); return; }
-  // UI dan olib tashlash
-  document.getElementById('jday-' + date)?.remove();
-  notify('O\'chirildi!');
-}
-
-// ---- DAVOMAT STATISTIKA ----
-async function loadJournalStats() {
-  const gid   = document.getElementById('jsGroupSel')?.value;
-  const month = document.getElementById('jsMonth')?.value;
-  if (!gid) return;
-
-  const from = month ? month + '-01' : null;
-  const to   = month ? month + '-31' : null;
-
-  let q = sb.from('journal_entries').select('*').eq('group_id', gid);
-  if (from) q = q.gte('lesson_date', from).lte('lesson_date', to);
-  const { data: entries } = await q;
-
-  const cats     = myCategories.filter(c => c.group_id === gid || !c.group_id);
-  const students = myStudents.filter(s => s.groupIds?.includes(gid)).sort((a,b)=>a.last_name.localeCompare(b.last_name));
-  const g        = myGroups.find(x => x.id === gid);
-  const totalDays = [...new Set((entries||[]).map(e=>e.lesson_date))].length;
-
-  if (!entries?.length) {
-    document.getElementById('journalStatsWrap').innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px">Ma\'lumotlar yo\'q</div>';
-    return;
-  }
-
-  const attColor = { present:'#86efac', absent:'#fca5a5', late:'#fcd34d', excused:'#93c5fd' };
-
-  document.getElementById('journalStatsWrap').innerHTML = `
-    <div style="margin-bottom:16px;font-size:13px;color:var(--muted)">${g?.name} · Jami ${totalDays} ta dars kuni</div>
-    <div class="card" style="padding:0;overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:var(--bg3)">
-            <th style="text-align:left;padding:10px 14px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap">#  O'quvchi</th>
-            <th style="padding:10px 14px;color:#86efac;border-bottom:1px solid var(--border);text-align:center">✅ Keldi</th>
-            <th style="padding:10px 14px;color:#fca5a5;border-bottom:1px solid var(--border);text-align:center">❌ Kelmadi</th>
-            <th style="padding:10px 14px;color:#fcd34d;border-bottom:1px solid var(--border);text-align:center">🕐 Kech</th>
-            <th style="padding:10px 14px;color:#93c5fd;border-bottom:1px solid var(--border);text-align:center">📋 Sababli</th>
-            <th style="padding:10px 14px;color:var(--muted);border-bottom:1px solid var(--border);text-align:center">Davomat%</th>
-            ${cats.map(c=>`<th style="padding:10px 14px;color:var(--purple);border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">${c.name}<br><span style="font-weight:400;font-size:10px">o'rtacha</span></th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${students.map((s,i) => {
-            const stuEntries = (entries||[]).filter(e => e.student_id === s.id);
-            const present  = stuEntries.filter(e=>e.attendance==='present').length;
-            const absent   = stuEntries.filter(e=>e.attendance==='absent').length;
-            const late     = stuEntries.filter(e=>e.attendance==='late').length;
-            const excused  = stuEntries.filter(e=>e.attendance==='excused').length;
-            const pct      = totalDays ? Math.round((present+late)*100/totalDays) : 0;
-            const pctColor = pct>=80?'var(--green)':pct>=60?'var(--amber)':'var(--red)';
-            return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
-              <td style="padding:9px 14px;font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
-              <td style="padding:9px 14px;text-align:center;color:#86efac;font-weight:700">${present}</td>
-              <td style="padding:9px 14px;text-align:center;color:#fca5a5;font-weight:700">${absent||'—'}</td>
-              <td style="padding:9px 14px;text-align:center;color:#fcd34d;font-weight:700">${late||'—'}</td>
-              <td style="padding:9px 14px;text-align:center;color:#93c5fd;font-weight:700">${excused||'—'}</td>
-              <td style="padding:9px 14px;text-align:center">
-                <span style="font-weight:800;color:${pctColor}">${pct}%</span>
-                <div style="height:4px;background:var(--border);border-radius:2px;margin-top:3px;overflow:hidden">
-                  <div style="height:100%;width:${pct}%;background:${pctColor};border-radius:2px"></div>
-                </div>
-              </td>
-              ${cats.map(c => {
-                const scores = stuEntries.map(e=>(e.grades||{})[c.id]).filter(v=>v!==undefined&&v!=='');
-                const avg    = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
-                return `<td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--purple)">${avg}</td>`;
-              }).join('')}
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`;
 }
 
 // ============================================================
