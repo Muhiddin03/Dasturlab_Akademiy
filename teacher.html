@@ -354,7 +354,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="page" id="page-tests">
         <div class="page-header">
           <div class="page-title">Mening testlarim</div>
-          <button class="btn btn-primary btn-sm" onclick="openM('createTest')">+ Test yaratish</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="openM('importTest')">📂 Yuklash</button>
+            <button class="btn btn-primary btn-sm" onclick="openM('createTest')">+ Test yaratish</button>
+          </div>
         </div>
         <div class="card">
           <div class="tbl-wrap">
@@ -465,6 +468,93 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeM('addCategory')">Bekor</button>
       <button class="btn btn-primary" onclick="saveCategory()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT TEST -->
+<div class="modal-overlay" id="ov-importTest">
+  <div class="modal modal-lg">
+    <div class="modal-title">Tayyor testni yuklash</div>
+    <div class="tabs" style="margin-bottom:16px">
+      <div class="tab active" id="itab-json" onclick="switchImportTab('json')">📄 JSON fayl</div>
+      <div class="tab" id="itab-manual" onclick="switchImportTab('manual')">✍️ Matn (copy-paste)</div>
+    </div>
+
+    <!-- JSON tab -->
+    <div id="ipanel-json">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--muted)">
+        <div style="font-weight:600;color:var(--text);margin-bottom:8px">JSON format namunasi:</div>
+        <pre style="font-size:11px;color:#c4b5fd;overflow-x:auto">{
+  "name": "Test nomi",
+  "questions": [
+    {
+      "question": "Savol matni?",
+      "type": "multiple",
+      "options": ["A javob", "B javob", "C javob", "D javob"],
+      "correct": 0
+    },
+    {
+      "question": "Yozma savol",
+      "type": "written"
+    }
+  ]
+}</pre>
+      </div>
+      <div style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:14px"
+           onclick="document.getElementById('jsonFileInp').click()"
+           ondragover="event.preventDefault()" ondrop="handleFileDrop(event)">
+        <div style="font-size:32px;margin-bottom:8px">📂</div>
+        <div style="font-size:14px;font-weight:600">JSON faylni tanlang yoki shu yerga tashlang</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">.json formatda</div>
+        <input type="file" id="jsonFileInp" accept=".json" style="display:none" onchange="handleJsonFile(event)">
+      </div>
+      <div id="jsonPreview"></div>
+    </div>
+
+    <!-- Manual tab -->
+    <div id="ipanel-manual" style="display:none">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--muted)">
+        <div style="font-weight:600;color:var(--text);margin-bottom:6px">Matn format (har qator — bir savol):</div>
+        <pre style="font-size:11px;color:#c4b5fd">1. Savol matni?
+A) Birinchi javob
+B) Ikkinchi javob
+C) Uchinchi javob
+D) To'g'ri javob
+Javob: D
+
+2. Keyingi savol?
+A) ...
+</pre>
+      </div>
+      <textarea class="inp" id="manualText" style="min-height:200px;font-family:monospace;font-size:13px" placeholder="Savollarni shu yerga yozing yoki nusxalab qo'ying..."></textarea>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="parseManualText()">Tahlil qilish</button>
+      <div id="manualPreview" style="margin-top:12px"></div>
+    </div>
+
+    <!-- Umumiy sozlamalar -->
+    <div id="importSettings" style="display:none;margin-top:16px">
+      <hr style="border-color:var(--border);margin-bottom:16px">
+      <div class="form-grid">
+        <div class="form-row"><label class="form-label">Test nomi</label>
+          <input class="inp" id="impTestName" style="margin:0"></div>
+        <div class="form-row"><label class="form-label">Guruh</label>
+          <select class="inp" id="impGroup" style="margin:0"></select></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label class="form-label">Vaqt (daqiqa)</label>
+          <input class="inp" id="impTime" type="number" value="30" style="margin:0"></div>
+        <div class="form-row"><label class="form-label">Holat</label>
+          <select class="inp" id="impStatus" style="margin:0">
+            <option value="draft">Qoralama</option>
+            <option value="active">Faol</option>
+          </select></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeM('importTest')">Bekor</button>
+      <button class="btn btn-primary" id="importSaveBtn" style="display:none" onclick="saveImportedTest()">💾 Testni saqlash</button>
     </div>
   </div>
 </div>
@@ -1037,22 +1127,28 @@ async function saveJournal() {
 async function loadJournalHistory() {
   const gid   = document.getElementById('jhGroupSel')?.value;
   const month = document.getElementById('jhMonth')?.value;
-  if (!gid) return;
+  if (!gid) { notify('Guruh tanlang', 'err'); return; }
+
+  document.getElementById('journalHistoryWrap').innerHTML =
+    '<div style="color:var(--muted);text-align:center;padding:40px"><div class="spinner" style="margin:0 auto 10px"></div>Yuklanmoqda...</div>';
 
   const from = month ? month + '-01' : null;
   const to   = month ? month + '-31' : null;
 
   let q = sb.from('journal_entries').select('*').eq('group_id', gid).order('lesson_date', { ascending: false });
-  if (from) q = q.gte('lesson_date', from).lte('lesson_date', to);
-  const { data: entries } = await q;
+  if (from && to) q = q.gte('lesson_date', from).lte('lesson_date', to);
+  const { data: entries, error } = await q;
+
+  if (error) { notify('Xato: ' + error.message, 'err'); return; }
 
   if (!entries?.length) {
-    document.getElementById('journalHistoryWrap').innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px">Bu davrda yozuvlar yo\'q</div>';
+    document.getElementById('journalHistoryWrap').innerHTML =
+      '<div style="color:var(--muted);text-align:center;padding:40px">📭 Bu davrda yozuvlar yo\'q</div>';
     return;
   }
 
   const cats     = myCategories.filter(c => c.group_id === gid || !c.group_id);
-  const students = myStudents.filter(s => s.groupIds?.includes(gid));
+  const students = myStudents.filter(s => s.groupIds?.includes(gid)).sort((a,b)=>a.last_name.localeCompare(b.last_name));
   const dates    = [...new Set(entries.map(e => e.lesson_date))].sort().reverse();
   const g        = myGroups.find(x => x.id === gid);
 
@@ -1061,49 +1157,60 @@ async function loadJournalHistory() {
   const attColor = { present:'#86efac', absent:'#fca5a5', late:'#fcd34d', excused:'#93c5fd' };
 
   document.getElementById('journalHistoryWrap').innerHTML = `
-    <div style="margin-bottom:12px;font-size:13px;color:var(--muted)">${g?.name} · ${dates.length} ta dars kuni</div>
+    <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="font-size:13px;color:var(--muted)">
+        <strong style="color:var(--text)">${g?.name}</strong> · ${dates.length} ta dars kuni · ${entries.length} ta yozuv
+      </div>
+    </div>
     ${dates.map(date => {
       const dayEntries = entries.filter(e => e.lesson_date === date);
-      const present  = dayEntries.filter(e => e.attendance === 'present').length;
-      const absent   = dayEntries.filter(e => e.attendance === 'absent').length;
-      const late     = dayEntries.filter(e => e.attendance === 'late').length;
-      const excused  = dayEntries.filter(e => e.attendance === 'excused').length;
-      const dateStr  = new Date(date).toLocaleDateString('uz-UZ', { weekday:'short', day:'numeric', month:'long' });
+      const present = dayEntries.filter(e=>e.attendance==='present').length;
+      const absent  = dayEntries.filter(e=>e.attendance==='absent').length;
+      const late    = dayEntries.filter(e=>e.attendance==='late').length;
+      const excused = dayEntries.filter(e=>e.attendance==='excused').length;
+      const dateStr = new Date(date + 'T00:00:00').toLocaleDateString('uz-UZ', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
 
       return `
-        <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
+        <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden" id="jday-${date}">
           <div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-            <div style="font-weight:700">${dateStr}</div>
-            <div style="display:flex;gap:8px;font-size:12px">
-              ${present ? `<span style="color:#86efac">✅ ${present}</span>` : ''}
-              ${absent  ? `<span style="color:#fca5a5">❌ ${absent}</span>`  : ''}
-              ${late    ? `<span style="color:#fcd34d">🕐 ${late}</span>`    : ''}
-              ${excused ? `<span style="color:#93c5fd">📋 ${excused}</span>` : ''}
+            <div>
+              <div style="font-weight:700;font-size:14px">📅 ${dateStr}</div>
+              <div style="display:flex;gap:10px;font-size:12px;margin-top:3px;flex-wrap:wrap">
+                ${present ? `<span style="color:#86efac">✅ ${present} keldi</span>` : ''}
+                ${absent  ? `<span style="color:#fca5a5">❌ ${absent} kelmadi</span>` : ''}
+                ${late    ? `<span style="color:#fcd34d">🕐 ${late} kech</span>` : ''}
+                ${excused ? `<span style="color:#93c5fd">📋 ${excused} sababli</span>` : ''}
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-xs" onclick="editJournalDay('${gid}','${date}')">✏️ Tahrirlash</button>
+              <button class="btn btn-danger btn-xs" onclick="deleteJournalDay('${gid}','${date}')">🗑 O'chirish</button>
             </div>
           </div>
           <div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse;font-size:13px">
               <thead>
-                <tr>
-                  <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">O'quvchi</th>
+                <tr style="background:var(--bg)">
+                  <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap">#  O'quvchi</th>
                   <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">Davomat</th>
-                  ${cats.map(c=>`<th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">${c.name}</th>`).join('')}
+                  ${cats.map(c=>`<th style="text-align:center;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap">${c.name}<br><span style="font-size:10px;font-weight:400">/${c.max_score}</span></th>`).join('')}
                   <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">Izoh</th>
                 </tr>
               </thead>
               <tbody>
-                ${students.map(s => {
+                ${students.map((s,i) => {
                   const e = dayEntries.find(x => x.student_id === s.id);
-                  if (!e) return `<tr><td style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04)" colspan="${3+cats.length}">${s.last_name} ${s.first_name} <span style="color:var(--muted)">(kiritilmagan)</span></td></tr>`;
-                  const totalGrade = cats.reduce((sum,c) => sum + ((e.grades||{})[c.id]||0), 0);
-                  const maxGrade   = cats.reduce((sum,c) => sum + c.max_score, 0);
+                  if (!e) return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+                    <td colspan="${3+cats.length}" style="padding:8px 12px;color:var(--hint)">
+                      ${i+1}. ${s.last_name} ${s.first_name} <span style="font-size:11px">— kiritilmagan</span>
+                    </td></tr>`;
                   return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
-                    <td style="padding:8px 12px;font-weight:600">${s.last_name} ${s.first_name}</td>
+                    <td style="padding:8px 12px;font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
                     <td style="padding:8px 12px">
-                      <span style="color:${attColor[e.attendance]};font-size:13px">${attIcon[e.attendance]} ${attLabel[e.attendance]}</span>
+                      <span style="color:${attColor[e.attendance]}">${attIcon[e.attendance]} ${attLabel[e.attendance]}</span>
                     </td>
-                    ${cats.map(c => `<td style="padding:8px 12px;font-weight:600;color:var(--purple)">${(e.grades||{})[c.id]??'—'}</td>`).join('')}
-                    <td style="padding:8px 12px;color:var(--muted)">${e.note||'—'}</td>
+                    ${cats.map(c=>`<td style="padding:8px 12px;text-align:center;font-weight:700;color:var(--purple)">${(e.grades||{})[c.id]??'—'}</td>`).join('')}
+                    <td style="padding:8px 12px;color:var(--muted);font-size:12px">${e.note||'—'}</td>
                   </tr>`;
                 }).join('')}
               </tbody>
@@ -1111,6 +1218,31 @@ async function loadJournalHistory() {
           </div>
         </div>`;
     }).join('')}`;
+}
+
+// Jurnal kunini tahrirlash — "Dars kiritish" tabiga o'tib shu sanani ochadi
+function editJournalDay(gid, date) {
+  // Guruh va sanani o'rnatish
+  document.getElementById('jGroupSel').value = gid;
+  document.getElementById('jDate').value = date;
+  // "Dars kiritish" tabiga o'tish
+  switchJTab('enter');
+  loadJournal();
+  // Sidebar ham yangilash
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('[data-page="journal"]')?.classList.add('active');
+  notify('Tahrirlash uchun sana yuklandi ✏️');
+}
+
+// Jurnal kunini o'chirish
+async function deleteJournalDay(gid, date) {
+  const dateStr = new Date(date + 'T00:00:00').toLocaleDateString('uz-UZ', {weekday:'long', day:'numeric', month:'long'});
+  if (!confirm(`"${dateStr}" kungi barcha yozuvlarni o'chirishni tasdiqlaysizmi?`)) return;
+  const { error } = await sb.from('journal_entries').delete().eq('group_id', gid).eq('lesson_date', date);
+  if (error) { notify('Xato: ' + error.message, 'err'); return; }
+  // UI dan olib tashlash
+  document.getElementById('jday-' + date)?.remove();
+  notify('O\'chirildi!');
 }
 
 // ---- DAVOMAT STATISTIKA ----
@@ -1627,6 +1759,160 @@ function populateSelects() {
 
   // Jurnal sana va oy default
   renderJournalGroupSel();
+}
+
+// ============================================================
+// TEST IMPORT
+// ============================================================
+let importedQuestions = [];
+
+function switchImportTab(tab) {
+  ['json','manual'].forEach(t => {
+    document.getElementById('itab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('ipanel-'+t).style.display = t===tab ? 'block' : 'none';
+  });
+  importedQuestions = [];
+  document.getElementById('importSettings').style.display = 'none';
+  document.getElementById('importSaveBtn').style.display = 'none';
+}
+
+function handleFileDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) readJsonFile(file);
+}
+
+function handleJsonFile(e) {
+  const file = e.target.files[0];
+  if (file) readJsonFile(file);
+}
+
+function readJsonFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      processImportedData(data);
+    } catch(err) {
+      notify('JSON formati noto\'g\'ri: ' + err.message, 'err');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function processImportedData(data) {
+  // Format: { name, questions: [{question, type, options, correct}] }
+  const qs = data.questions || data;
+  if (!Array.isArray(qs) || !qs.length) { notify('Savollar topilmadi', 'err'); return; }
+
+  importedQuestions = qs.map((q, i) => ({
+    question_text: q.question || q.text || q.savol || `Savol ${i+1}`,
+    question_type: (q.type === 'written' || q.type === 'yozma') ? 'written' : 'multiple',
+    options:       q.options || q.variantlar || null,
+    correct_index: q.correct ?? q.to_gri ?? 0,
+    max_score:     q.score || q.ball || 1,
+    order_num:     i
+  }));
+
+  const testName = data.name || data.nom || '';
+  if (testName) document.getElementById('impTestName').value = testName;
+
+  showImportPreview(document.getElementById('jsonPreview'));
+}
+
+function parseManualText() {
+  const text = document.getElementById('manualText').value.trim();
+  if (!text) { notify('Matn kiriting', 'err'); return; }
+
+  importedQuestions = [];
+  // Split by numbered questions: 1. 2. etc
+  const blocks = text.split(/\n(?=\d+[\.\)]\s)/).filter(b => b.trim());
+
+  blocks.forEach((block, i) => {
+    const lines = block.trim().split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return;
+
+    // First line — question text (remove numbering)
+    const qText = lines[0].replace(/^\d+[\.\)]\s*/, '').trim();
+    const opts = [];
+    let correct = 0;
+    let isWritten = false;
+
+    lines.slice(1).forEach(line => {
+      const optMatch = line.match(/^[A-Da-d][\.\)]\s*(.+)/);
+      const ansMatch = line.match(/^(Javob|Answer|To'g'ri)[\s:]*([A-Da-d])/i);
+      if (optMatch) opts.push(optMatch[1].trim());
+      if (ansMatch) correct = 'abcd'.indexOf(ansMatch[2].toLowerCase());
+      if (line.toLowerCase().includes('yozma') || line.toLowerCase().includes('written')) isWritten = true;
+    });
+
+    importedQuestions.push({
+      question_text: qText,
+      question_type: (opts.length === 0 || isWritten) ? 'written' : 'multiple',
+      options: opts.length ? opts : null,
+      correct_index: correct,
+      max_score: 1,
+      order_num: i
+    });
+  });
+
+  if (!importedQuestions.length) { notify('Savollar aniqlanmadi. Formatni tekshiring', 'err'); return; }
+  showImportPreview(document.getElementById('manualPreview'));
+}
+
+function showImportPreview(wrap) {
+  const letters = ['A','B','C','D'];
+  wrap.innerHTML = `
+    <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
+      ✅ <strong>${importedQuestions.length}</strong> ta savol aniqlandi
+    </div>
+    <div style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+      ${importedQuestions.map((q,i) => `
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px">
+          <div style="font-weight:600;margin-bottom:4px">${i+1}. ${q.question_text}</div>
+          ${q.question_type === 'multiple' && q.options
+            ? q.options.map((o,j) => `<span style="color:${j===q.correct_index?'#86efac':'var(--muted)'}">${letters[j]}) ${o} ${j===q.correct_index?'✓':''}</span>`).join('  ')
+            : '<span style="color:#c4b5fd">✍️ Yozma savol</span>'}
+        </div>`).join('')}
+    </div>`;
+
+  // Settings ko'rsatish
+  document.getElementById('importSettings').style.display = 'block';
+  document.getElementById('importSaveBtn').style.display = 'inline-flex';
+  // Guruh selectni to'ldirish
+  const gs = document.getElementById('impGroup');
+  gs.innerHTML = myGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+}
+
+async function saveImportedTest() {
+  const name  = document.getElementById('impTestName').value.trim();
+  const gid   = document.getElementById('impGroup').value;
+  const time  = parseInt(document.getElementById('impTime').value) || 30;
+  const status = document.getElementById('impStatus').value;
+
+  if (!name) { notify('Test nomini kiriting', 'err'); return; }
+  if (!gid)  { notify('Guruh tanlang', 'err'); return; }
+  if (!importedQuestions.length) { notify('Savollar yo\'q', 'err'); return; }
+
+  const hasWritten  = importedQuestions.some(q => q.question_type === 'written');
+  const hasMultiple = importedQuestions.some(q => q.question_type === 'multiple');
+  const testType = hasWritten && hasMultiple ? 'mixed' : hasWritten ? 'written' : 'multiple';
+
+  const { data: test, error } = await sb.from('tests').insert({
+    name, group_id: gid, teacher_id: currentUser.id,
+    test_type: testType, time_limit: time, status,
+    shuffle_questions: true, shuffle_options: true, show_results: true
+  }).select().single();
+
+  if (error) { notify('Xato: ' + error.message, 'err'); return; }
+
+  const qRows = importedQuestions.map(q => ({ ...q, test_id: test.id }));
+  await sb.from('questions').insert(qRows);
+
+  closeM('importTest');
+  notify(`✅ "${name}" — ${importedQuestions.length} ta savol bilan saqlandi!`);
+  importedQuestions = [];
+  await loadAll();
 }
 
 // ============================================================
