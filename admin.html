@@ -250,14 +250,7 @@ textarea.inp{resize:vertical;min-height:80px}
           <div class="page-title">O'qituvchilar</div>
           <button class="btn btn-primary btn-sm" onclick="openM('addTeacher')">+ Qo'shish</button>
         </div>
-        <div class="card">
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr><th>Ism</th><th>Email</th><th>Fan</th><th>Guruhlar</th><th>Holat</th><th>Amallar</th></tr></thead>
-              <tbody id="teachersTbody"></tbody>
-            </table>
-          </div>
-        </div>
+        <div id="teachersGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
       </div>
 
       <!-- GROUPS -->
@@ -794,20 +787,77 @@ function renderRecentTests() {
 // TEACHERS
 // ============================================================
 function renderTeachers() {
-  document.getElementById('teachersTbody').innerHTML = allTeachers.map(t => {
-    const groups = allGroups.filter(g => g.teacher_id === t.id);
-    return `<tr>
-      <td><strong>${t.name}</strong>${t.is_admin?'<span class="badge badge-purple" style="margin-left:6px">Admin</span>':''}</td>
-      <td style="color:var(--muted)">${t.email}</td>
-      <td>${t.subject||'—'}</td>
-      <td>${groups.map(g=>`<span style="font-size:12px;margin-right:4px">${g.name}</span>`).join('') || '—'}</td>
-      <td><span class="badge ${t.is_approved?'badge-green':'badge-amber'}">${t.is_approved?'Tasdiqlangan':'Kutmoqda'}</span></td>
-      <td style="display:flex;gap:6px">
-        ${!t.is_admin ? `<button class="btn btn-secondary btn-xs" onclick="toggleApprove('${t.id}',${t.is_approved})">${t.is_approved?'Bekor':'Tasdiqlash'}</button>` : ''}
-        ${!t.is_admin ? `<button class="btn btn-danger btn-xs" onclick="deleteTeacher('${t.id}')">O'chirish</button>` : ''}
-      </td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">O\'qituvchilar yo\'q</td></tr>';
+  const list = allTeachers;
+  if (!list.length) {
+    document.getElementById('teachersGrid').innerHTML =
+      '<div style="color:var(--muted);text-align:center;padding:40px">O\'qituvchilar yo\'q</div>';
+    return;
+  }
+  document.getElementById('teachersGrid').innerHTML = list.map(t => {
+    const groups  = allGroups.filter(g => g.teacher_id === t.id);
+    const stuCount = allStudents.filter(s => s.groupIds?.some(gid => groups.find(g=>g.id===gid))).length;
+    const resCount = allResults.filter(r => groups.some(g => {
+      const tids = allTests.filter(ts=>ts.group_id===g.id).map(ts=>ts.id);
+      return tids.includes(r.test_id);
+    })).length;
+
+    return `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0;overflow:hidden">
+      <!-- Header -->
+      <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--purple),#a78bfa);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0">
+          ${t.name?.charAt(0).toUpperCase() || '?'}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${t.name}
+            ${t.is_admin ? '<span class="badge badge-purple">Admin</span>' : ''}
+          </div>
+          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.email}</div>
+        </div>
+        <span class="badge ${t.is_approved ? 'badge-green' : 'badge-amber'}" style="flex-shrink:0">
+          ${t.is_approved ? 'Faol' : 'Kutmoqda'}
+        </span>
+      </div>
+
+      <!-- Info -->
+      <div style="padding:12px 16px;display:flex;gap:16px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div style="font-size:12px;color:var(--muted)">
+          📚 <span style="color:var(--text)">${t.subject || 'Fan kiritilmagan'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">
+          👥 <span style="color:var(--text)">${stuCount}</span> o'quvchi
+        </div>
+        <div style="font-size:12px;color:var(--muted)">
+          📝 <span style="color:var(--text)">${resCount}</span> natija
+        </div>
+      </div>
+
+      <!-- Groups -->
+      <div style="padding:10px 16px;min-height:44px;border-bottom:1px solid var(--border)">
+        ${groups.length
+          ? `<div style="display:flex;flex-wrap:wrap;gap:5px">
+              ${groups.map(g => `
+                <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">
+                  <span style="width:6px;height:6px;border-radius:50%;background:${g.color};flex-shrink:0"></span>
+                  ${g.name}
+                </span>`).join('')}
+            </div>`
+          : '<span style="font-size:12px;color:var(--hint)">— Guruh biriktirilmagan</span>'
+        }
+      </div>
+
+      <!-- Actions -->
+      ${!t.is_admin ? `
+      <div style="padding:10px 16px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-xs" onclick="openEditTeacher('${t.id}')">✏️ Tahrirlash</button>
+        <button class="btn ${t.is_approved?'btn-secondary':'btn-primary'} btn-xs" onclick="toggleApprove('${t.id}',${t.is_approved})">
+          ${t.is_approved ? '🔒 Bloklash' : '✓ Tasdiqlash'}
+        </button>
+        <button class="btn btn-danger btn-xs" onclick="deleteTeacher('${t.id}')">🗑 O'chirish</button>
+      </div>` : '<div style="padding:10px 16px;font-size:12px;color:var(--hint)">Super admin</div>'}
+    </div>`;
+  }).join('');
 }
 
 async function saveTeacher() {
