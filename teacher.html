@@ -983,6 +983,14 @@ async function removeStudentFromGroup(stuId) {
   notify("O'quvchi guruhdan chiqarildi");await loadAll();
 }
 
+// Oyning oxirgi kunini to'g'ri hisoblash
+function lastDayOfMonth(ym) {
+  // ym = '2026-06' formatida
+  const [y, m] = ym.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate(); // m = keyingi oy, 0 = oldingi oyning oxiri
+  return ym + '-' + String(last).padStart(2, '0');
+}
+
 // ============================================================
 // JOURNAL
 // ============================================================
@@ -1145,7 +1153,7 @@ async function loadJournalHistory() {
   jhSelectedDate  = '';
 
   const from = month ? month+'-01' : null;
-  const to   = month ? month+'-31' : null;
+  const to   = month ? lastDayOfMonth(month) : null;
   let q = sb.from('journal_entries').select('*').eq('group_id',gid).order('lesson_date',{ascending:false});
   if(from&&to) q=q.gte('lesson_date',from).lte('lesson_date',to);
   const{data,error}=await q;
@@ -1258,7 +1266,7 @@ async function loadJournalStats() {
   const gid   = document.getElementById('jsGroupSel')?.value;
   const month = document.getElementById('jsMonth')?.value;
   if(!gid){notify('Guruh tanlang','err');return;}
-  const from=month?month+'-01':null, to=month?month+'-31':null;
+  const from=month?month+'-01':null, to=month?lastDayOfMonth(month):null;
   let q=sb.from('journal_entries').select('*').eq('group_id',gid);
   if(from&&to) q=q.gte('lesson_date',from).lte('lesson_date',to);
   const{data:entries}=await q;
