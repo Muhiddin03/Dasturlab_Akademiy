@@ -281,70 +281,68 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <button class="btn btn-secondary btn-sm" onclick="openM('addCategory')">+ Kategoriya</button>
         </div>
 
-        <!-- TABS -->
         <div class="tabs">
-          <div class="tab active" id="jtab-enter" onclick="switchJTab('enter')">✏️ Dars kiritish</div>
-          <div class="tab" id="jtab-history" onclick="switchJTab('history')">📋 Jurnal tarixi</div>
-          <div class="tab" id="jtab-stats" onclick="switchJTab('stats')">📊 Davomat statistika</div>
+          <div class="tab active" id="jtab-enter"   onclick="switchJTab('enter')">✏️ Dars kiritish</div>
+          <div class="tab"        id="jtab-history" onclick="switchJTab('history')">📋 Jurnal tarixi</div>
+          <div class="tab"        id="jtab-stats"   onclick="switchJTab('stats')">📊 Statistika</div>
         </div>
 
-        <!-- TAB: DARS KIRITISH -->
+        <!-- DARS KIRITISH -->
         <div id="jpanel-enter">
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
             <div>
-              <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px">Guruh</div>
-              <select class="inp" style="width:auto;margin:0" id="jGroupSel" onchange="loadJournal()"></select>
+              <div class="form-label">Guruh</div>
+              <select class="inp" style="width:auto;margin:0" id="jGroupSel"></select>
             </div>
             <div>
-              <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px">Sana</div>
-              <input type="date" class="inp" style="width:auto;margin:0" id="jDate" onchange="loadJournal()">
+              <div class="form-label">Sana</div>
+              <input type="date" class="inp" style="width:auto;margin:0" id="jDate">
             </div>
-            <button class="btn btn-primary" onclick="saveJournal()" style="height:42px">💾 Saqlash</button>
+            <button class="btn btn-secondary" onclick="loadJournal()" style="height:42px">Yuklash</button>
+            <button class="btn btn-primary"   onclick="saveJournal()" style="height:42px">💾 Saqlash</button>
           </div>
-
           <div class="card" style="padding:0;overflow-x:auto">
-            <div id="journalWrap" style="padding:16px;min-width:600px">
-              <div style="color:var(--muted);text-align:center;padding:40px">Guruh va sana tanlang</div>
+            <div id="journalWrap" style="padding:20px;min-width:500px">
+              <div style="color:var(--muted);text-align:center;padding:40px">Guruh va sanani tanlab "Yuklash" tugmasini bosing</div>
             </div>
           </div>
-
           <div class="card" style="margin-top:12px">
-            <div class="card-title">
-              Baholash kategoriyalari
-              <span style="font-size:12px;color:var(--muted);font-weight:400">o'qituvchi o'zi belgilaydi</span>
-            </div>
+            <div class="card-title">Baholash kategoriyalari</div>
             <div id="categoriesList" style="display:flex;gap:8px;flex-wrap:wrap"></div>
           </div>
         </div>
 
-        <!-- TAB: JURNAL TARIXI -->
+        <!-- JURNAL TARIXI -->
         <div id="jpanel-history" style="display:none">
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
             <div>
-              <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px">Guruh</div>
-              <select class="inp" style="width:auto;margin:0" id="jhGroupSel" onchange="loadJournalHistory()"></select>
+              <div class="form-label">Guruh</div>
+              <select class="inp" style="width:auto;margin:0" id="jhGroupSel"></select>
             </div>
             <div>
-              <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px">Oy</div>
+              <div class="form-label">Oy tanlang</div>
               <input type="month" class="inp" style="width:auto;margin:0" id="jhMonth">
             </div>
-            <button class="btn btn-secondary" onclick="loadJournalHistory()" style="height:42px">Ko'rish</button>
+            <button class="btn btn-primary" onclick="loadJournalHistory()" style="height:42px">Ko'rish</button>
           </div>
-          <div id="journalHistoryWrap"></div>
+          <!-- Sanalar ro'yxati -->
+          <div id="jhDaysList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+          <!-- Tanlangan kun jadvali -->
+          <div id="jhDayDetail"></div>
         </div>
 
-        <!-- TAB: STATISTIKA -->
+        <!-- STATISTIKA -->
         <div id="jpanel-stats" style="display:none">
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
             <div>
-              <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px">Guruh</div>
-              <select class="inp" style="width:auto;margin:0" id="jsGroupSel" onchange="loadJournalStats()"></select>
+              <div class="form-label">Guruh</div>
+              <select class="inp" style="width:auto;margin:0" id="jsGroupSel"></select>
             </div>
             <div>
-              <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px">Oy</div>
+              <div class="form-label">Oy</div>
               <input type="month" class="inp" style="width:auto;margin:0" id="jsMonth">
             </div>
-            <button class="btn btn-secondary" onclick="loadJournalStats()" style="height:42px">Ko'rish</button>
+            <button class="btn btn-primary" onclick="loadJournalStats()" style="height:42px">Ko'rish</button>
           </div>
           <div id="journalStatsWrap"></div>
         </div>
@@ -856,7 +854,14 @@ function nav(el, page) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   el.classList.add('active');
-  if (page==='journal') { loadJournal(); }
+  // Jurnal sahifasiga kirganda bugungi sana bilan avtomatik yuklash
+  if (page==='journal') {
+    renderJournalGroupSel();
+    // Agar guruh va sana tanlangan bo'lsa yuklash
+    const gid  = document.getElementById('jGroupSel')?.value;
+    const date = document.getElementById('jDate')?.value;
+    if (gid && date) loadJournal();
+  }
 }
 
 // ============================================================
@@ -981,29 +986,351 @@ async function removeStudentFromGroup(stuId) {
 // ============================================================
 // JOURNAL
 // ============================================================
+let jhAllEntries = [];   // history uchun cache
+let jhSelectedDate = ''; // history da tanlangan kun
+
 function switchJTab(tab) {
   ['enter','history','stats'].forEach(t => {
     document.getElementById('jtab-'+t).classList.toggle('active', t===tab);
-    document.getElementById('jpanel-'+t).style.display = t===tab ? 'block' : 'none';
+    document.getElementById('jpanel-'+t).style.display = t===tab?'block':'none';
   });
-  if (tab==='history') loadJournalHistory();
-  if (tab==='stats')   loadJournalStats();
 }
 
 function renderJournalGroupSel() {
-  const opts = myGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
-  ['jGroupSel','jhGroupSel','jsGroupSel'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = opts;
-  });
   const today = new Date().toISOString().split('T')[0];
-  const ym = today.slice(0,7);
-  const jDate = document.getElementById('jDate');
-  if (jDate && !jDate.value) jDate.value = today;
-  ['jhMonth','jsMonth'].forEach(id => {
+  const ym    = today.slice(0,7);
+  const opts  = myGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+
+  ['jGroupSel','jhGroupSel','jsGroupSel'].forEach(id=>{
     const el = document.getElementById(id);
-    if (el && !el.value) el.value = ym;
+    if (el && !el.innerHTML) el.innerHTML = opts;
   });
+  const jd = document.getElementById('jDate');
+  if (jd && !jd.value) jd.value = today;
+  const jh = document.getElementById('jhMonth');
+  if (jh && !jh.value) jh.value = ym;
+  const js = document.getElementById('jsMonth');
+  if (js && !js.value) js.value = ym;
+}
+
+// ---- DARS KIRITISH ----
+async function loadJournal() {
+  const gid  = document.getElementById('jGroupSel')?.value;
+  const date = document.getElementById('jDate')?.value;
+  const wrap = document.getElementById('journalWrap');
+  if (!gid || !date) { wrap.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px">Guruh va sanani tanlang</div>'; return; }
+
+  wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)"><div class="spinner" style="margin:0 auto 8px"></div>Yuklanmoqda...</div>';
+
+  const { data: entries } = await sb.from('journal_entries').select('*').eq('group_id', gid).eq('lesson_date', date);
+  const students = myStudents.filter(s=>s.groupIds?.includes(gid)).sort((a,b)=>a.last_name.localeCompare(b.last_name));
+  const cats     = myCategories.filter(c=>c.group_id===gid||!c.group_id);
+  const g        = myGroups.find(x=>x.id===gid);
+
+  if (!students.length) {
+    wrap.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px">Bu guruhda o\'quvchilar yo\'q</div>';
+    return;
+  }
+
+  const dateStr = new Date(date+'T00:00:00').toLocaleDateString('uz-UZ',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const ATT = [
+    {k:'present', i:'✅', l:'Keldi',    c:'rgba(34,197,94,.2)',  t:'#86efac'},
+    {k:'absent',  i:'❌', l:'Kelmadi',  c:'rgba(239,68,68,.2)', t:'#fca5a5'},
+    {k:'late',    i:'🕐', l:'Kech',     c:'rgba(245,158,11,.2)',t:'#fcd34d'},
+    {k:'excused', i:'📋', l:'Sababli',  c:'rgba(59,130,246,.2)',t:'#93c5fd'},
+  ];
+
+  wrap.innerHTML = `
+    <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font-weight:700">${g?.name}</div>
+      <div style="font-size:13px;color:var(--muted)">📅 ${dateStr}</div>
+      <div style="display:flex;gap:6px;margin-left:auto;flex-wrap:wrap">
+        ${ATT.map(a=>`<span style="font-size:12px;background:${a.c};color:${a.t};padding:2px 8px;border-radius:12px">${a.i} ${a.l}</span>`).join('')}
+      </div>
+    </div>
+    <table class="journal-table" id="jTable">
+      <thead><tr>
+        <th style="min-width:150px">#  O'quvchi</th>
+        <th style="min-width:180px">Davomat</th>
+        ${cats.map(c=>`<th style="min-width:70px;text-align:center">${c.name}<br><span style="font-size:10px;font-weight:400;color:var(--hint)">/${c.max_score}</span></th>`).join('')}
+        <th style="min-width:130px">Izoh</th>
+      </tr></thead>
+      <tbody>
+        ${students.map((s,i)=>{
+          const e   = (entries||[]).find(j=>j.student_id===s.id)||{attendance:'present',grades:{},note:''};
+          const att = e.attendance||'present';
+          return `<tr data-stu="${s.id}">
+            <td style="font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
+            <td>
+              <div style="display:flex;gap:4px">
+                ${ATT.map(a=>`<button class="att-btn" title="${a.l}"
+                  data-att="${a.k}" onclick="setAtt(this)"
+                  style="background:${att===a.k?a.c:'transparent'};color:${att===a.k?a.t:'var(--hint)'};border:1px solid ${att===a.k?a.t:'var(--border)'};border-radius:6px;padding:4px 6px;cursor:pointer;font-size:14px;transition:.1s"
+                >${a.i}</button>`).join('')}
+              </div>
+            </td>
+            ${cats.map(c=>{
+              const val=(e.grades||{})[c.id]??'';
+              return `<td style="text-align:center">
+                <input class="grade-inp" data-cat="${c.id}" data-stu="${s.id}"
+                  value="${val}" type="number" min="0" max="${c.max_score}" placeholder="—"
+                  style="width:52px;text-align:center">
+              </td>`;
+            }).join('')}
+            <td><input class="search-inp" data-stu="${s.id}" data-note="1"
+              value="${e.note||''}" placeholder="Izoh..." style="width:120px;font-size:12px;padding:5px 8px"></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function setAtt(btn) {
+  btn.closest('tr').querySelectorAll('.att-btn').forEach(b=>{
+    b.style.background='transparent';
+    b.style.color='var(--hint)';
+    b.style.border='1px solid var(--border)';
+  });
+  const ATT={present:{c:'rgba(34,197,94,.2)',t:'#86efac'},absent:{c:'rgba(239,68,68,.2)',t:'#fca5a5'},late:{c:'rgba(245,158,11,.2)',t:'#fcd34d'},excused:{c:'rgba(59,130,246,.2)',t:'#93c5fd'}};
+  const a=ATT[btn.dataset.att];
+  if(a){btn.style.background=a.c;btn.style.color=a.t;btn.style.border=`1px solid ${a.t}`;}
+}
+
+async function saveJournal() {
+  const gid  = document.getElementById('jGroupSel')?.value;
+  const date = document.getElementById('jDate')?.value;
+  if (!gid||!date) { notify('Guruh va sana tanlang','err'); return; }
+  const students = myStudents.filter(s=>s.groupIds?.includes(gid));
+  if (!students.length) { notify('O\'quvchilar yo\'q','err'); return; }
+
+  const rows = students.map(s=>{
+    let att='present';
+    document.querySelectorAll(`tr[data-stu="${s.id}"] .att-btn`).forEach(b=>{
+      if(b.style.background&&b.style.background!=='transparent') att=b.dataset.att;
+    });
+    const grades={};
+    document.querySelectorAll(`tr[data-stu="${s.id}"] .grade-inp`).forEach(inp=>{
+      if(inp.value!=='') grades[inp.dataset.cat]=parseFloat(inp.value)||0;
+    });
+    const note=document.querySelector(`tr[data-stu="${s.id}"] [data-note]`)?.value||'';
+    return{group_id:gid,teacher_id:currentUser.id,student_id:s.id,lesson_date:date,attendance:att,grades,note};
+  });
+
+  const{error}=await sb.from('journal_entries').upsert(rows,{onConflict:'group_id,student_id,lesson_date'});
+  if(error){notify('Xato: '+error.message,'err');return;}
+  notify('Jurnal saqlandi! ✅');
+}
+
+// ---- JURNAL TARIXI ----
+async function loadJournalHistory() {
+  const gid   = document.getElementById('jhGroupSel')?.value;
+  const month = document.getElementById('jhMonth')?.value;
+  const wrap  = document.getElementById('jhDaysList');
+  const detail= document.getElementById('jhDayDetail');
+  if(!gid){ notify('Guruh tanlang','err'); return; }
+
+  wrap.innerHTML  = '<div style="color:var(--muted);font-size:13px">Yuklanmoqda...</div>';
+  detail.innerHTML= '';
+  jhSelectedDate  = '';
+
+  const from = month ? month+'-01' : null;
+  const to   = month ? month+'-31' : null;
+  let q = sb.from('journal_entries').select('*').eq('group_id',gid).order('lesson_date',{ascending:false});
+  if(from&&to) q=q.gte('lesson_date',from).lte('lesson_date',to);
+  const{data,error}=await q;
+  if(error){notify('Xato: '+error.message,'err');return;}
+  jhAllEntries=data||[];
+
+  const dates=[...new Set(jhAllEntries.map(e=>e.lesson_date))].sort().reverse();
+  if(!dates.length){
+    wrap.innerHTML='<div style="color:var(--muted);font-size:13px;padding:20px 0">Bu davrda yozuvlar yo\'q</div>';
+    return;
+  }
+
+  const ATT={present:{i:'✅',c:'#86efac'},absent:{i:'❌',c:'#fca5a5'},late:{i:'🕐',c:'#fcd34d'},excused:{i:'📋',c:'#93c5fd'}};
+  wrap.innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;width:100%">${dates.length} ta dars kuni — kunni bosib ko'ring:</div>
+    ${dates.map(date=>{
+      const day=jhAllEntries.filter(e=>e.lesson_date===date);
+      const p=day.filter(e=>e.attendance==='present').length;
+      const a=day.filter(e=>e.attendance==='absent').length;
+      const dateLabel=new Date(date+'T00:00:00').toLocaleDateString('uz-UZ',{day:'numeric',month:'short',weekday:'short'});
+      return `<button onclick="showJournalDay('${gid}','${date}')" id="jdayBtn-${date}"
+        style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;text-align:left;transition:.15s;color:var(--text)">
+        <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap">${dateLabel}</div>
+        <div style="font-size:11px;margin-top:3px;display:flex;gap:6px">
+          <span style="color:#86efac">✅${p}</span>
+          ${a?`<span style="color:#fca5a5">❌${a}</span>`:''}
+        </div>
+      </button>`;
+    }).join('')}`;
+
+  // Birinchi kunni avtomatik ko'rsatish
+  if(dates.length) showJournalDay(gid, dates[0]);
+}
+
+function showJournalDay(gid, date) {
+  jhSelectedDate=date;
+  // Tanlangan tugmani highlight
+  document.querySelectorAll('[id^="jdayBtn-"]').forEach(b=>{
+    b.style.borderColor='var(--border)';
+    b.style.background='var(--card)';
+  });
+  const btn=document.getElementById('jdayBtn-'+date);
+  if(btn){btn.style.borderColor='var(--purple)';btn.style.background='rgba(124,111,247,.1)';}
+
+  const entries  = jhAllEntries.filter(e=>e.lesson_date===date);
+  const cats     = myCategories.filter(c=>c.group_id===gid||!c.group_id);
+  const students = myStudents.filter(s=>s.groupIds?.includes(gid)).sort((a,b)=>a.last_name.localeCompare(b.last_name));
+  const dateStr  = new Date(date+'T00:00:00').toLocaleDateString('uz-UZ',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  const ATT={present:{i:'✅',l:'Keldi',t:'#86efac'},absent:{i:'❌',l:'Kelmadi',t:'#fca5a5'},late:{i:'🕐',l:'Kech keldi',t:'#fcd34d'},excused:{i:'📋',l:'Sababli',t:'#93c5fd'}};
+
+  document.getElementById('jhDayDetail').innerHTML=`
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="font-weight:700">📅 ${dateStr}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-xs" onclick="editJournalDay('${gid}','${date}')">✏️ Tahrirlash</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteJournalDay('${gid}','${date}')">🗑 O'chirish</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:var(--bg)">
+            <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)"># O'quvchi</th>
+            <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">Davomat</th>
+            ${cats.map(c=>`<th style="text-align:center;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">${c.name}</th>`).join('')}
+            <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">Izoh</th>
+          </tr></thead>
+          <tbody>
+            ${students.map((s,i)=>{
+              const e=entries.find(x=>x.student_id===s.id);
+              if(!e) return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+                <td colspan="${3+cats.length}" style="padding:8px 12px;color:var(--hint)">${i+1}. ${s.last_name} ${s.first_name} — kiritilmagan</td></tr>`;
+              const at=ATT[e.attendance]||ATT.present;
+              return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+                <td style="padding:8px 12px;font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
+                <td style="padding:8px 12px"><span style="color:${at.t}">${at.i} ${at.l}</span></td>
+                ${cats.map(c=>`<td style="padding:8px 12px;text-align:center;font-weight:700;color:var(--purple)">${(e.grades||{})[c.id]??'—'}</td>`).join('')}
+                <td style="padding:8px 12px;color:var(--muted);font-size:12px">${e.note||'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function editJournalDay(gid, date) {
+  document.getElementById('jGroupSel').value = gid;
+  document.getElementById('jDate').value     = date;
+  switchJTab('enter');
+  loadJournal();
+  notify('Tahrirlash uchun ochildi ✏️');
+}
+
+async function deleteJournalDay(gid, date) {
+  const ds=new Date(date+'T00:00:00').toLocaleDateString('uz-UZ',{day:'numeric',month:'long'});
+  if(!confirm(`"${ds}" kungi barcha yozuvlarni o'chirishni tasdiqlaysizmi?`)) return;
+  const{error}=await sb.from('journal_entries').delete().eq('group_id',gid).eq('lesson_date',date);
+  if(error){notify('Xato: '+error.message,'err');return;}
+  // UI dan olib tashlash
+  document.getElementById('jdayBtn-'+date)?.remove();
+  document.getElementById('jhDayDetail').innerHTML='';
+  jhAllEntries=jhAllEntries.filter(e=>e.lesson_date!==date);
+  notify("O'chirildi ✅");
+}
+
+// ---- STATISTIKA ----
+async function loadJournalStats() {
+  const gid   = document.getElementById('jsGroupSel')?.value;
+  const month = document.getElementById('jsMonth')?.value;
+  if(!gid){notify('Guruh tanlang','err');return;}
+  const from=month?month+'-01':null, to=month?month+'-31':null;
+  let q=sb.from('journal_entries').select('*').eq('group_id',gid);
+  if(from&&to) q=q.gte('lesson_date',from).lte('lesson_date',to);
+  const{data:entries}=await q;
+  const cats    =myCategories.filter(c=>c.group_id===gid||!c.group_id);
+  const students=myStudents.filter(s=>s.groupIds?.includes(gid)).sort((a,b)=>a.last_name.localeCompare(b.last_name));
+  const g       =myGroups.find(x=>x.id===gid);
+  const totalDays=[...new Set((entries||[]).map(e=>e.lesson_date))].length;
+  if(!entries?.length){
+    document.getElementById('journalStatsWrap').innerHTML='<div style="color:var(--muted);text-align:center;padding:40px">Ma\'lumotlar yo\'q</div>';
+    return;
+  }
+  document.getElementById('journalStatsWrap').innerHTML=`
+    <div style="margin-bottom:12px;font-size:13px;color:var(--muted)">${g?.name} · Jami ${totalDays} ta dars kuni</div>
+    <div class="card" style="padding:0;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--bg3)">
+          <th style="text-align:left;padding:10px 14px;color:var(--muted);border-bottom:1px solid var(--border)"># O'quvchi</th>
+          <th style="padding:10px 14px;color:#86efac;border-bottom:1px solid var(--border);text-align:center">✅ Keldi</th>
+          <th style="padding:10px 14px;color:#fca5a5;border-bottom:1px solid var(--border);text-align:center">❌ Kelmadi</th>
+          <th style="padding:10px 14px;color:#fcd34d;border-bottom:1px solid var(--border);text-align:center">🕐 Kech</th>
+          <th style="padding:10px 14px;color:#93c5fd;border-bottom:1px solid var(--border);text-align:center">📋 Sababli</th>
+          <th style="padding:10px 14px;color:var(--muted);border-bottom:1px solid var(--border);text-align:center">Davomat</th>
+          ${cats.map(c=>`<th style="padding:10px 14px;color:var(--purple);border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">${c.name}<br><span style="font-size:10px;font-weight:400">o'rtacha</span></th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${students.map((s,i)=>{
+            const se=(entries||[]).filter(e=>e.student_id===s.id);
+            const p=se.filter(e=>e.attendance==='present').length;
+            const a=se.filter(e=>e.attendance==='absent').length;
+            const l=se.filter(e=>e.attendance==='late').length;
+            const x=se.filter(e=>e.attendance==='excused').length;
+            const pct=totalDays?Math.round((p+l)*100/totalDays):0;
+            const pc=pct>=80?'var(--green)':pct>=60?'var(--amber)':'var(--red)';
+            return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+              <td style="padding:9px 14px;font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
+              <td style="padding:9px 14px;text-align:center;color:#86efac;font-weight:700">${p}</td>
+              <td style="padding:9px 14px;text-align:center;color:#fca5a5;font-weight:700">${a||'—'}</td>
+              <td style="padding:9px 14px;text-align:center;color:#fcd34d;font-weight:700">${l||'—'}</td>
+              <td style="padding:9px 14px;text-align:center;color:#93c5fd;font-weight:700">${x||'—'}</td>
+              <td style="padding:9px 14px;text-align:center">
+                <span style="font-weight:800;color:${pc}">${pct}%</span>
+                <div style="height:4px;background:var(--border);border-radius:2px;margin-top:3px;overflow:hidden">
+                  <div style="height:100%;width:${pct}%;background:${pc};border-radius:2px"></div>
+                </div>
+              </td>
+              ${cats.map(c=>{
+                const sc=se.map(e=>(e.grades||{})[c.id]).filter(v=>v!==undefined&&v!=='');
+                const av=sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length).toFixed(1):'—';
+                return `<td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--purple)">${av}</td>`;
+              }).join('')}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderCategories() {
+  document.getElementById('categoriesList').innerHTML=myCategories.length
+    ?myCategories.map(c=>{
+        const g=myGroups.find(x=>x.id===c.group_id);
+        return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:6px">
+          <span style="font-weight:600">${c.name}</span>
+          <span style="color:var(--muted)">/${c.max_score}</span>
+          ${g?`<span style="color:var(--hint);font-size:11px">· ${g.name}</span>`:''}
+          <button class="btn btn-danger btn-xs" onclick="deleteCategory('${c.id}')">×</button>
+        </div>`;}).join('')
+    :'<div style="color:var(--muted);font-size:13px">Kategoriya yo\'q. + Kategoriya tugmasini bosing.</div>';
+}
+
+async function saveCategory() {
+  const name=document.getElementById('catName').value.trim();
+  const max=parseInt(document.getElementById('catMax').value)||10;
+  const gid=document.getElementById('catGroup').value;
+  if(!name){notify('Nom kerak','err');return;}
+  await sb.from('grade_categories').insert({teacher_id:currentUser.id,group_id:gid||null,name,max_score:max});
+  closeM('addCategory');notify('Kategoriya qo\'shildi!');await loadAll();
+}
+
+async function deleteCategory(id) {
+  if(!confirm('Kategoriyani o\'chirishni tasdiqlaysizmi?'))return;
+  await sb.from('grade_categories').delete().eq('id',id);
+  notify('O\'chirildi');await loadAll();
 }
 
 async function loadJournal() {
@@ -1316,35 +1643,6 @@ async function loadJournalStats() {
         </tbody>
       </table>
     </div>`;
-}
-
-function renderCategories() {
-  document.getElementById('categoriesList').innerHTML = myCategories.length
-    ? myCategories.map(c => {
-        const g = myGroups.find(x => x.id === c.group_id);
-        return `
-        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;display:flex;align-items:center;gap:6px">
-          <span style="font-weight:600">${c.name}</span>
-          <span style="color:var(--muted)">/${c.max_score}</span>
-          ${g ? `<span style="color:var(--hint);font-size:11px">· ${g.name}</span>` : ''}
-          <button class="btn btn-danger btn-xs" onclick="deleteCategory('${c.id}')">×</button>
-        </div>`;}).join('')
-    : '<div style="color:var(--muted);font-size:13px">Kategoriya yo\'q. Yuqoridagi + Kategoriya tugmasini bosing.</div>';
-}
-
-async function saveCategory() {
-  const name = document.getElementById('catName').value.trim();
-  const max  = parseInt(document.getElementById('catMax').value) || 10;
-  const gid  = document.getElementById('catGroup').value;
-  if (!name) { notify('Nom kerak', 'err'); return; }
-  await sb.from('grade_categories').insert({ teacher_id:currentUser.id, group_id:gid||null, name, max_score:max });
-  closeM('addCategory'); notify('Kategoriya qo\'shildi!'); await loadAll();
-}
-
-async function deleteCategory(id) {
-  if (!confirm('Kategoriyani o\'chirishni tasdiqlaysizmi?')) return;
-  await sb.from('grade_categories').delete().eq('id', id);
-  notify('O\'chirildi'); await loadAll();
 }
 
 // ============================================================
