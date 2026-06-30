@@ -267,7 +267,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="card">
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th>#</th><th>Ism Familiya</th><th>Telefon</th><th>Guruh</th><th>Testlar</th><th>O'rtacha</th><th>Amallar</th></tr></thead>
+              <thead><tr><th>#</th><th>Ism Familiya</th><th>Telefon</th><th>Guruh</th><th>Testlar soni</th><th>Test o'rtacha</th><th>Jurnal bali</th><th>Umumiy reyting</th><th>Amallar</th></tr></thead>
               <tbody id="myStudentsTbody"></tbody>
             </table>
           </div>
@@ -841,6 +841,16 @@ async function loadAll() {
       myQuestions = qData||[];
     } else myQuestions=[];
 
+    // Journal cache — for students table quick display
+    try {
+      const { data: jAll } = await sb.from('journal_entries').select('*').in('group_id', gids);
+      window._journalCache = {};
+      (jAll||[]).forEach(e => {
+        if (!window._journalCache[e.student_id]) window._journalCache[e.student_id] = [];
+        window._journalCache[e.student_id].push(e);
+      });
+    } catch(err) { window._journalCache = {}; }
+
     renderAll();
   } catch(e) {
     notify('Xato: '+e.message,'err');
@@ -993,20 +1003,50 @@ function renderMyStudents() {
   document.getElementById('myStudentsTbody').innerHTML=list.map((s,i)=>{
     const groups=(s.groupIds||[]).map(gid=>myGroups.find(g=>g.id===gid)?.name).filter(Boolean);
     const res=myResults.filter(r=>r.student_id===s.id);
-    const avg=res.length?Math.round(res.reduce((a,r)=>a+r.percent,0)/res.length):'—';
+    const testAvg=res.length?Math.round(res.reduce((a,r)=>a+r.percent,0)/res.length):null;
+
+    // Jurnal: cached from myCategories (approximate — full calc in popup)
+    let jTotal=0, jMax=0;
+    const gids=s.groupIds||[];
+    // we use pre-cached journal data if available
+    if(window._journalCache){
+      (window._journalCache[s.id]||[]).forEach(e=>{
+        const cats=myCategories.filter(c=>gids.includes(c.group_id)||!c.group_id);
+        cats.forEach(c=>{const v=(e.grades||{})[c.id];if(v!==undefined&&v!==''){jTotal+=parseFloat(v)||0;jMax+=c.max_score;}});
+      });
+    }
+    const jPct=jMax>0?Math.round(jTotal/jMax*100):null;
+    let combined;
+    if(testAvg!==null&&jPct!==null) combined=Math.round(testAvg*0.6+jPct*0.4);
+    else if(testAvg!==null) combined=testAvg;
+    else if(jPct!==null) combined=jPct;
+    else combined=null;
+
+    const testCell=testAvg!==null
+      ?`<span style="font-weight:700;color:${testAvg>=70?'var(--green)':testAvg>=50?'var(--amber)':'var(--red)'}">${testAvg}%</span>`
+      :'<span style="color:var(--muted)">—</span>';
+    const jCell=jPct!==null
+      ?`<span style="font-weight:700;color:var(--amber)">${jPct}%</span><span style="font-size:11px;color:var(--muted)"> (${jTotal}/${jMax})</span>`
+      :'<span style="color:var(--muted)">—</span>';
+    const combinedCell=combined!==null
+      ?`<span style="font-weight:800;font-size:14px;color:${combined>=70?'var(--green)':combined>=50?'var(--amber)':'var(--red)'}">${combined}%</span>`
+      :'<span style="color:var(--muted)">—</span>';
+
     return`<tr>
       <td style="color:var(--muted)">${i+1}</td>
-      <td><strong>${s.last_name} ${s.first_name}</strong></td>
+      <td><strong style="cursor:pointer;color:var(--purple)" onclick="showStudentJournalScore('${s.id}','${s.last_name} ${s.first_name}')">${s.last_name} ${s.first_name}</strong></td>
       <td style="color:var(--muted)">${s.phone||'—'}</td>
-      <td>${groups.join(', ')||'—'}</td>
-      <td>${res.length}</td>
-      <td>${res.length?`<span style="font-weight:700;color:var(--purple)">${avg}%</span>`:'—'}</td>
+      <td>${groups.map(g=>`<span style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:2px 8px;font-size:11px">${g}</span>`).join(' ')||'—'}</td>
+      <td style="text-align:center">${res.length?`<span style="font-weight:700">${res.length}</span>`:'<span style="color:var(--muted)">0</span>'}</td>
+      <td>${testCell}</td>
+      <td>${jCell}</td>
+      <td>${combinedCell}</td>
       <td style="display:flex;gap:4px">
         <button class="btn btn-secondary btn-xs" onclick="openEditStudent('${s.id}')">✏️ Tahrir</button>
-        <button class="btn btn-danger btn-xs" onclick="removeStudentFromGroup('${s.id}')">Guruhdan chiqarish</button>
+        <button class="btn btn-danger btn-xs" onclick="removeStudentFromGroup('${s.id}')">Chiqarish</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted)">O\'quvchilar topilmadi</td></tr>';
+  }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--muted)">O\'quvchilar topilmadi</td></tr>';
 }
 
 async function saveStudent() {
