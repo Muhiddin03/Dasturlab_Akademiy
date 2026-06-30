@@ -502,6 +502,23 @@ textarea.inp{resize:vertical;min-height:80px}
   </div>
 </div>
 
+<!-- EDIT STUDENT ADMIN -->
+<div class="modal-overlay" id="ov-editStudent">
+  <div class="modal">
+    <div class="modal-title">O'quvchini tahrirlash</div>
+    <input type="hidden" id="editStuId">
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Ism</label><input class="inp" id="editSFirst" placeholder="Ism"></div>
+      <div class="form-row"><label class="form-label">Familiya</label><input class="inp" id="editSLast" placeholder="Familiya"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Telefon</label><input class="inp" id="editSPhone" placeholder="+998 90..."></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeM('editStudent')">Bekor</button>
+      <button class="btn btn-primary" onclick="saveEditStudent()">💾 Saqlash</button>
+    </div>
+  </div>
+</div>
+
 <!-- VIEW RESULT DETAIL -->
 <div class="modal-overlay" id="ov-resultDetail">
   <div class="modal" style="max-width:640px">
@@ -1135,6 +1152,7 @@ function renderStudents() {
       <td>${groups.join(', ')||'—'}</td>
       <td>${resCount ? `<span style="font-weight:700;color:var(--purple)">${avg}%</span> <span style="color:var(--muted);font-size:12px">(${resCount} test)</span>` : '—'}</td>
       <td style="display:flex;gap:4px">
+        <button class="btn btn-secondary btn-xs" onclick="openEditStudent('${s.id}')">✏️ Tahrir</button>
         <button class="btn btn-danger btn-xs" onclick="deleteStudent('${s.id}')">O'chirish</button>
       </td>
     </tr>`;
@@ -1161,6 +1179,27 @@ async function deleteStudent(id) {
   if (!confirm('O\'quvchini o\'chirishni tasdiqlaysizmi?')) return;
   await sb.from('students').delete().eq('id', id);
   notify('O\'quvchi o\'chirildi'); await loadAll();
+}
+
+function openEditStudent(stuId) {
+  const s = allStudents.find(x=>x.id===stuId);
+  if(!s) return;
+  document.getElementById('editStuId').value = stuId;
+  document.getElementById('editSFirst').value = s.first_name||'';
+  document.getElementById('editSLast').value = s.last_name||'';
+  document.getElementById('editSPhone').value = s.phone||'';
+  openM('editStudent');
+}
+
+async function saveEditStudent() {
+  const id    = document.getElementById('editStuId').value;
+  const first = document.getElementById('editSFirst').value.trim();
+  const last  = document.getElementById('editSLast').value.trim();
+  const phone = document.getElementById('editSPhone').value.trim();
+  if(!first||!last){notify('Ism va familiya kerak','err');return;}
+  const{error}=await sb.from('students').update({first_name:first,last_name:last,phone}).eq('id',id);
+  if(error){notify('Xato: '+error.message,'err');return;}
+  closeM('editStudent');notify("O'quvchi ma'lumotlari yangilandi ✅");await loadAll();
 }
 
 // ============================================================
