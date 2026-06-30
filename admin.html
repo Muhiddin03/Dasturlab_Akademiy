@@ -1461,7 +1461,7 @@ document.querySelectorAll('.modal-overlay').forEach(ov => {
 // NOTIFICATIONS
 // ============================================================
 function notify(msg, type='success') {
-  const wrap = document.getElementById('notifWrap'); 
+  const wrap = document.getElementById('notifWrap');
   const el   = document.createElement('div');
   el.className = 'notif' + (type==='err'?' err':type==='info'?' info':'');
   el.innerHTML = `<span>${type==='success'?'✅':type==='err'?'❌':'ℹ️'}</span> ${msg}`;
