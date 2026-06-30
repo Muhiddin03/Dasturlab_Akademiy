@@ -723,7 +723,7 @@ document.querySelectorAll('.overlay').forEach(ov => {
 });
 
 function notify(msg, type='success') {
-  const wrap = document.getElementById('notifWrap');
+  const wrap = document.getElementById('notifWrap'); 
   const el = document.createElement('div');
   el.className = 'notif' + (type==='err'?' err':'');
   el.innerHTML = `<span>${type==='success'?'✅':'❌'}</span> ${msg}`;
