@@ -264,10 +264,31 @@ tr:hover td{background:rgba(255,255,255,.02)}
           </select>
           <input class="search-inp" id="stuSearch" placeholder="Qidirish..." oninput="renderMyStudents()">
         </div>
-        <div class="card">
+        <div class="card" style="padding:0">
           <div class="tbl-wrap">
-            <table>
-              <thead><tr><th>#</th><th>Ism Familiya</th><th>Telefon</th><th>Guruh</th><th>Testlar soni</th><th>Test o'rtacha</th><th>Jurnal bali</th><th>Umumiy reyting</th><th>Amallar</th></tr></thead>
+            <table style="table-layout:fixed;width:100%">
+              <colgroup>
+                <col style="width:40px">
+                <col style="width:160px">
+                <col style="width:130px">
+                <col style="width:150px">
+                <col style="width:90px">
+                <col style="width:100px">
+                <col style="width:120px">
+                <col style="width:120px">
+                <col style="width:160px">
+              </colgroup>
+              <thead><tr>
+                <th style="padding:10px 8px">#</th>
+                <th style="padding:10px 8px">Ism Familiya</th>
+                <th style="padding:10px 8px">Telefon</th>
+                <th style="padding:10px 8px">Guruh</th>
+                <th style="padding:10px 8px;text-align:center">Testlar</th>
+                <th style="padding:10px 8px;text-align:center">Test %</th>
+                <th style="padding:10px 8px;text-align:center">Jurnal</th>
+                <th style="padding:10px 8px;text-align:center">Umumiy</th>
+                <th style="padding:10px 8px">Amallar</th>
+              </tr></thead>
               <tbody id="myStudentsTbody"></tbody>
             </table>
           </div>
@@ -1026,24 +1047,34 @@ function renderMyStudents() {
       ?`<span style="font-weight:700;color:${testAvg>=70?'var(--green)':testAvg>=50?'var(--amber)':'var(--red)'}">${testAvg}%</span>`
       :'<span style="color:var(--muted)">—</span>';
     const jCell=jPct!==null
-      ?`<span style="font-weight:700;color:var(--amber)">${jPct}%</span><span style="font-size:11px;color:var(--muted)"> (${jTotal}/${jMax})</span>`
+      ?`<span style="font-weight:700;color:var(--amber)">${jPct}%</span><br><span style="font-size:10px;color:var(--muted)">${jTotal}/${jMax}</span>`
       :'<span style="color:var(--muted)">—</span>';
     const combinedCell=combined!==null
       ?`<span style="font-weight:800;font-size:14px;color:${combined>=70?'var(--green)':combined>=50?'var(--amber)':'var(--red)'}">${combined}%</span>`
       :'<span style="color:var(--muted)">—</span>';
 
     return`<tr>
-      <td style="color:var(--muted)">${i+1}</td>
-      <td><strong style="cursor:pointer;color:var(--purple)" onclick="showStudentJournalScore('${s.id}','${s.last_name} ${s.first_name}')">${s.last_name} ${s.first_name}</strong></td>
-      <td style="color:var(--muted)">${s.phone||'—'}</td>
-      <td>${groups.map(g=>`<span style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:2px 8px;font-size:11px">${g}</span>`).join(' ')||'—'}</td>
-      <td style="text-align:center">${res.length?`<span style="font-weight:700">${res.length}</span>`:'<span style="color:var(--muted)">0</span>'}</td>
-      <td>${testCell}</td>
-      <td>${jCell}</td>
-      <td>${combinedCell}</td>
-      <td style="display:flex;gap:4px">
-        <button class="btn btn-secondary btn-xs" onclick="openEditStudent('${s.id}')">✏️ Tahrir</button>
-        <button class="btn btn-danger btn-xs" onclick="removeStudentFromGroup('${s.id}')">Chiqarish</button>
+      <td style="padding:8px;color:var(--muted);font-size:12px">${i+1}</td>
+      <td style="padding:8px;overflow:hidden">
+        <strong style="cursor:pointer;color:var(--purple);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px"
+          onclick="showStudentJournalScore('${s.id}','${s.last_name} ${s.first_name}')"
+          title="${s.last_name} ${s.first_name}">${s.last_name} ${s.first_name}</strong>
+      </td>
+      <td style="padding:8px;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.phone||'—'}</td>
+      <td style="padding:8px;overflow:hidden">
+        ${groups.length
+          ? groups.map(g=>`<div style="font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px 6px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g}">${g}</div>`).join('')
+          : '<span style="color:var(--muted)">—</span>'}
+      </td>
+      <td style="padding:8px;text-align:center;font-size:13px">${res.length?`<span style="font-weight:700">${res.length}</span>`:'<span style="color:var(--hint)">0</span>'}</td>
+      <td style="padding:8px;text-align:center">${testCell}</td>
+      <td style="padding:8px;text-align:center;font-size:12px">${jCell}</td>
+      <td style="padding:8px;text-align:center">${combinedCell}</td>
+      <td style="padding:8px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-xs" onclick="openEditStudent('${s.id}')">✏️</button>
+          <button class="btn btn-danger btn-xs" onclick="removeStudentFromGroup('${s.id}')">Chiqarish</button>
+        </div>
       </td>
     </tr>`;
   }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--muted)">O\'quvchilar topilmadi</td></tr>';
