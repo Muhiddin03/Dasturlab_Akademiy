@@ -722,24 +722,52 @@ function renderLeaderboardMonths() {
   }
 }
 
-function renderLeaderboard() {
+async function renderLeaderboard() {
   const month = document.getElementById('lbMonthSel')?.value || currentMonth();
-  const res   = allResults.filter(r => r.month === month);
   const map   = {};
-  res.forEach(r => {
-    if (!map[r.student_id]) map[r.student_id] = { name: r.student_name, scores: [] };
-    map[r.student_id].scores.push(r.percent);
+  // Test natijalari
+  allResults.filter(r => r.month === month).forEach(r => {
+    if (!map[r.student_id]) map[r.student_id] = { name: r.student_name, testScores:[], journalTotal:0, journalMax:0 };
+    map[r.student_id].testScores.push(r.percent);
   });
-  const ranked = Object.values(map)
-    .map(s => ({ ...s, avg: Math.round(s.scores.reduce((a,b) => a+b,0)/s.scores.length) }))
-    .sort((a,b) => b.avg - a.avg).slice(0, 5);
+  // Jurnal ballari (bu oy)
+  try {
+    const gids = allGroups.map(g => g.id);
+    if (gids.length) {
+      const from = month + '-01', to = month + '-31';
+      const { data: jEntries } = await sb.from('journal_entries').select('*')
+        .in('group_id', gids).gte('lesson_date', from).lte('lesson_date', to);
+      const { data: cats } = await sb.from('grade_categories').select('*');
+      (jEntries||[]).forEach(e => {
+        const sid = e.student_id;
+        const stu = allStudents.find(s => s.id === sid);
+        if (!stu) return;
+        if (!map[sid]) map[sid] = { name: stu.last_name+' '+stu.first_name, testScores:[], journalTotal:0, journalMax:0 };
+        (cats||[]).filter(c => c.group_id === e.group_id || !c.group_id).forEach(c => {
+          const v = (e.grades||{})[c.id];
+          if (v !== undefined && v !== '') { map[sid].journalTotal += parseFloat(v)||0; map[sid].journalMax += c.max_score; }
+        });
+      });
+    }
+  } catch(err) {}
+
   const medals = ['🥇','🥈','🥉','4.','5.'];
+  const ranked = Object.values(map).map(s => {
+    const testAvg = s.testScores.length ? Math.round(s.testScores.reduce((a,b)=>a+b,0)/s.testScores.length) : null;
+    const jPct    = s.journalMax > 0 ? Math.round(s.journalTotal / s.journalMax * 100) : null;
+    let combined;
+    if (testAvg !== null && jPct !== null) combined = Math.round(testAvg * 0.6 + jPct * 0.4);
+    else if (testAvg !== null) combined = testAvg;
+    else combined = jPct || 0;
+    return { ...s, combined };
+  }).sort((a,b) => b.combined - a.combined).slice(0, 5);
+
   document.getElementById('leaderboard').innerHTML = ranked.length
     ? ranked.map((r,i) => `
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
         <span style="font-size:18px;width:28px">${medals[i]}</span>
         <span style="flex:1;font-size:13px">${r.name}</span>
-        <span style="font-weight:700;color:var(--purple)">${r.avg}%</span>
+        <span style="font-weight:700;color:var(--purple)">${r.combined}%</span>
       </div>`).join('')
     : '<div style="color:var(--muted);font-size:13px">Bu oyda natijalar yo\'q</div>';
 }
