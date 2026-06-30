@@ -401,7 +401,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <div class="card">
             <div class="tbl-wrap">
               <table>
-                <thead><tr><th>#</th><th>O'quvchi</th><th>Test</th><th>Ball</th><th>%</th><th>Sana</th></tr></thead>
+                <thead><tr><th>#</th><th>O'quvchi</th><th>Test</th><th>Ball</th><th>%</th><th>Sana</th><th>Jurnal bali</th></tr></thead>
                 <tbody id="resultsTbody"></tbody>
               </table>
             </div>
@@ -449,6 +449,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeM('addStudent')">Bekor</button>
       <button class="btn btn-primary" onclick="saveStudent()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT STUDENT -->
+<div class="modal-overlay" id="ov-editStudent">
+  <div class="modal">
+    <div class="modal-title">O'quvchini tahrirlash</div>
+    <input type="hidden" id="editStuId">
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Ism</label><input class="inp" id="editSFirst" placeholder="Ism"></div>
+      <div class="form-row"><label class="form-label">Familiya</label><input class="inp" id="editSLast" placeholder="Familiya"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Telefon</label><input class="inp" id="editSPhone" placeholder="+998 90..."></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeM('editStudent')">Bekor</button>
+      <button class="btn btn-primary" onclick="saveEditStudent()">💾 Saqlash</button>
     </div>
   </div>
 </div>
@@ -949,7 +966,10 @@ function renderMyStudents() {
       <td>${groups.join(', ')||'—'}</td>
       <td>${res.length}</td>
       <td>${res.length?`<span style="font-weight:700;color:var(--purple)">${avg}%</span>`:'—'}</td>
-      <td><button class="btn btn-danger btn-xs" onclick="removeStudentFromGroup('${s.id}')">Guruhdan chiqarish</button></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-secondary btn-xs" onclick="openEditStudent('${s.id}')">✏️ Tahrir</button>
+        <button class="btn btn-danger btn-xs" onclick="removeStudentFromGroup('${s.id}')">Guruhdan chiqarish</button>
+      </td>
     </tr>`;
   }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted)">O\'quvchilar topilmadi</td></tr>';
 }
@@ -981,6 +1001,27 @@ async function removeStudentFromGroup(stuId) {
   if(!confirm('O\'quvchini guruhdan chiqarishni tasdiqlaysizmi?'))return;
   await sb.from('student_groups').delete().eq('student_id',stuId).in('group_id',gids);
   notify("O'quvchi guruhdan chiqarildi");await loadAll();
+}
+
+function openEditStudent(stuId) {
+  const s = myStudents.find(x=>x.id===stuId);
+  if(!s) return;
+  document.getElementById('editStuId').value = stuId;
+  document.getElementById('editSFirst').value = s.first_name||'';
+  document.getElementById('editSLast').value = s.last_name||'';
+  document.getElementById('editSPhone').value = s.phone||'';
+  openM('editStudent');
+}
+
+async function saveEditStudent() {
+  const id    = document.getElementById('editStuId').value;
+  const first = document.getElementById('editSFirst').value.trim();
+  const last  = document.getElementById('editSLast').value.trim();
+  const phone = document.getElementById('editSPhone').value.trim();
+  if(!first||!last){notify('Ism va familiya kerak','err');return;}
+  const{error}=await sb.from('students').update({first_name:first,last_name:last,phone}).eq('id',id);
+  if(error){notify('Xato: '+error.message,'err');return;}
+  closeM('editStudent');notify("O'quvchi ma'lumotlari yangilandi ✅");await loadAll();
 }
 
 // Oyning oxirgi kunini to'g'ri hisoblash
@@ -1067,12 +1108,14 @@ async function loadJournal() {
         <th style="min-width:150px">#  O'quvchi</th>
         <th style="min-width:180px">Davomat</th>
         ${cats.map(c=>`<th style="min-width:70px;text-align:center">${c.name}<br><span style="font-size:10px;font-weight:400;color:var(--hint)">/${c.max_score}</span></th>`).join('')}
-        <th style="min-width:130px">Izoh</th>
+        <th style="min-width:90px;text-align:center;color:var(--purple)">Jami ball</th>
       </tr></thead>
       <tbody>
         ${students.map((s,i)=>{
-          const e   = (entries||[]).find(j=>j.student_id===s.id)||{attendance:'present',grades:{},note:''};
+          const e   = (entries||[]).find(j=>j.student_id===s.id)||{attendance:'present',grades:{}};
           const att = e.attendance||'present';
+          const totalMax = cats.reduce((a,c)=>a+c.max_score,0);
+          const currentTotal = cats.reduce((a,c)=>a+((e.grades||{})[c.id]||0),0);
           return `<tr data-stu="${s.id}">
             <td style="font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
             <td>
@@ -1088,11 +1131,13 @@ async function loadJournal() {
               return `<td style="text-align:center">
                 <input class="grade-inp" data-cat="${c.id}" data-stu="${s.id}"
                   value="${val}" type="number" min="0" max="${c.max_score}" placeholder="—"
-                  style="width:52px;text-align:center">
+                  style="width:52px;text-align:center" oninput="updateRowTotal(this)">
               </td>`;
             }).join('')}
-            <td><input class="search-inp" data-stu="${s.id}" data-note="1"
-              value="${e.note||''}" placeholder="Izoh..." style="width:120px;font-size:12px;padding:5px 8px"></td>
+            <td style="text-align:center">
+              <span id="rowtotal-${s.id}" style="font-weight:800;color:var(--purple);font-size:14px">${currentTotal}</span>
+              <span style="font-size:11px;color:var(--muted)">/${totalMax}</span>
+            </td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -1110,6 +1155,16 @@ function setAtt(btn) {
   if(a){btn.style.background=a.c;btn.style.color=a.t;btn.style.border=`1px solid ${a.t}`;}
 }
 
+function updateRowTotal(inp) {
+  const stuId = inp.dataset.stu;
+  const row = inp.closest('tr');
+  if (!row) return;
+  let total = 0;
+  row.querySelectorAll('.grade-inp').forEach(i => { total += parseFloat(i.value)||0; });
+  const el = document.getElementById('rowtotal-'+stuId);
+  if (el) el.textContent = total;
+}
+
 async function saveJournal() {
   const gid  = document.getElementById('jGroupSel')?.value;
   const date = document.getElementById('jDate')?.value;
@@ -1123,11 +1178,11 @@ async function saveJournal() {
       if(b.style.background&&b.style.background!=='transparent') att=b.dataset.att;
     });
     const grades={};
+    let journalTotal=0;
     document.querySelectorAll(`tr[data-stu="${s.id}"] .grade-inp`).forEach(inp=>{
-      if(inp.value!=='') grades[inp.dataset.cat]=parseFloat(inp.value)||0;
+      if(inp.value!==''){const v=parseFloat(inp.value)||0;grades[inp.dataset.cat]=v;journalTotal+=v;}
     });
-    const note=document.querySelector(`tr[data-stu="${s.id}"] [data-note]`)?.value||'';
-    return{group_id:gid,teacher_id:currentUser.id,student_id:s.id,lesson_date:date,attendance:att,grades,note};
+    return{group_id:gid,teacher_id:currentUser.id,student_id:s.id,lesson_date:date,attendance:att,grades,total_score:journalTotal};
   });
 
   const{error}=await sb.from('journal_entries').upsert(rows,{onConflict:'group_id,student_id,lesson_date'});
@@ -1220,7 +1275,7 @@ function showJournalDay(gid, date) {
             <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)"># O'quvchi</th>
             <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">Davomat</th>
             ${cats.map(c=>`<th style="text-align:center;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">${c.name}</th>`).join('')}
-            <th style="text-align:left;padding:8px 12px;color:var(--muted);border-bottom:1px solid var(--border)">Izoh</th>
+            <th style="text-align:center;padding:8px 12px;color:var(--purple);border-bottom:1px solid var(--border)">Jami ball</th>
           </tr></thead>
           <tbody>
             ${students.map((s,i)=>{
@@ -1232,7 +1287,10 @@ function showJournalDay(gid, date) {
                 <td style="padding:8px 12px;font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
                 <td style="padding:8px 12px"><span style="color:${at.t}">${at.i} ${at.l}</span></td>
                 ${cats.map(c=>`<td style="padding:8px 12px;text-align:center;font-weight:700;color:var(--purple)">${(e.grades||{})[c.id]??'—'}</td>`).join('')}
-                <td style="padding:8px 12px;color:var(--muted);font-size:12px">${e.note||'—'}</td>
+                <td style="padding:8px 12px;text-align:center">
+                  <span style="font-weight:800;color:var(--purple)">${cats.reduce((a,c)=>a+((e.grades||{})[c.id]||0),0)}</span>
+                  <span style="font-size:11px;color:var(--muted)">/${cats.reduce((a,c)=>a+c.max_score,0)}</span>
+                </td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -1396,13 +1454,15 @@ async function loadJournal() {
           <th style="min-width:160px">#  O'quvchi</th>
           <th style="min-width:160px">Davomat</th>
           ${cats.map(c=>`<th style="min-width:80px" title="${c.name}">${c.name}<br><span style="font-weight:400;color:var(--hint);font-size:10px">/${c.max_score}</span></th>`).join('')}
-          <th style="min-width:140px">Izoh</th>
+          <th style="min-width:90px;text-align:center;color:var(--purple)">Jami ball</th>
         </tr>
       </thead>
       <tbody>
         ${students.map((s,i) => {
-          const e   = allJournalEntries.find(j => j.student_id === s.id) || { attendance:'present', grades:{}, note:'' };
+          const e   = allJournalEntries.find(j => j.student_id === s.id) || { attendance:'present', grades:{} };
           const att = e.attendance || 'present';
+          const totalMax2 = cats.reduce((a,c)=>a+c.max_score,0);
+          const currentTotal2 = cats.reduce((a,c)=>a+((e.grades||{})[c.id]||0),0);
           return `<tr data-stu="${s.id}">
             <td style="font-weight:600">${i+1}. ${s.last_name} ${s.first_name}</td>
             <td>
@@ -1419,12 +1479,12 @@ async function loadJournal() {
               return `<td>
                 <input class="grade-inp" data-cat="${c.id}" data-stu="${s.id}"
                   value="${val}" type="number" min="0" max="${c.max_score}"
-                  placeholder="—" style="width:56px">
+                  placeholder="—" style="width:56px" oninput="updateRowTotal(this)">
               </td>`;
             }).join('')}
-            <td>
-              <input class="search-inp" style="width:130px;font-size:12px;padding:5px 8px"
-                data-stu="${s.id}" data-note="1" value="${e.note||''}" placeholder="Izoh...">
+            <td style="text-align:center">
+              <span id="rowtotal-${s.id}" style="font-weight:800;color:var(--purple);font-size:14px">${currentTotal2}</span>
+              <span style="font-size:11px;color:var(--muted)">/${totalMax2}</span>
             </td>
           </tr>`;
         }).join('')}
@@ -1457,11 +1517,11 @@ async function saveJournal() {
     allBtns.forEach(b => { if (parseFloat(b.style.opacity) >= 0.9) att = b.dataset.att; });
 
     const grades = {};
+    let journalTotal2 = 0;
     document.querySelectorAll(`tr[data-stu="${s.id}"] .grade-inp`).forEach(inp => {
-      if (inp.value !== '') grades[inp.dataset.cat] = parseFloat(inp.value) || 0;
+      if (inp.value !== '') { const v=parseFloat(inp.value)||0; grades[inp.dataset.cat]=v; journalTotal2+=v; }
     });
-    const noteInp = document.querySelector(`tr[data-stu="${s.id}"] [data-note]`);
-    return { group_id:gid, teacher_id:currentUser.id, student_id:s.id, lesson_date:date, attendance:att, grades, note:noteInp?.value||'' };
+    return { group_id:gid, teacher_id:currentUser.id, student_id:s.id, lesson_date:date, attendance:att, grades, total_score:journalTotal2 };
   });
 
   const { error } = await sb.from('journal_entries').upsert(rows, { onConflict:'group_id,student_id,lesson_date' });
@@ -1766,36 +1826,87 @@ function renderResults(){
   if(gf){const tids=myTests.filter(t=>t.group_id===gf).map(t=>t.id);list=list.filter(r=>tids.includes(r.test_id));}
   document.getElementById('resultsTbody').innerHTML=list.map((r,i)=>{
     const t=myTests.find(t=>t.id===r.test_id);
+    const stu=myStudents.find(s=>s.id===r.student_id);
+    // Calculate journal total for this student
+    let jTotal=0, jMax=0;
+    if(stu){
+      const stuGids=stu.groupIds||[];
+      const cats=myCategories;
+      // We'll show a button to view details; for quick display use cached if available
+    }
     return`<tr>
       <td style="color:var(--muted)">${i+1}</td>
       <td>${r.student_name}</td>
       <td>${t?.name||'—'}</td>
-      <td>${r.score}/${r.total}</td>
+      <td><strong style="color:var(--blue)">${r.score}/${r.total}</strong></td>
       <td><span style="font-weight:700;color:${r.percent>=70?'var(--green)':r.percent>=50?'var(--amber)':'var(--red)'}">${r.percent}%</span></td>
       <td style="color:var(--muted)">${new Date(r.taken_at).toLocaleDateString('uz-UZ')}</td>
+      <td><button class="btn btn-secondary btn-xs" onclick="showStudentJournalScore('${r.student_id}','${r.student_name}')">📋 Ko'rish</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">Natijalar yo\'q</td></tr>';
+  }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted)">Natijalar yo\'q</td></tr>';
 }
 
-function renderRanking(){
+async function renderRanking(){
   const gf=document.getElementById('rankGroupSel')?.value||'';
   const mf=document.getElementById('rankMonthSel')?.value||'';
+  const wrap=document.getElementById('rankingContent');
+  wrap.innerHTML='<div style="color:var(--muted);padding:20px">Yuklanmoqda...</div>';
+
+  // --- Test natijalari ---
   let res=myResults.filter(r=>myTests.find(t=>t.id===r.test_id));
   if(gf){const tids=myTests.filter(t=>t.group_id===gf).map(t=>t.id);res=res.filter(r=>tids.includes(r.test_id));}
   if(mf)res=res.filter(r=>r.month===mf);
+
   const map={};
-  res.forEach(r=>{if(!map[r.student_id])map[r.student_id]={name:r.student_name,scores:[]};map[r.student_id].scores.push(r.percent);});
-  const ranked=Object.values(map).map(s=>({...s,avg:Math.round(s.scores.reduce((a,b)=>a+b,0)/s.scores.length)})).sort((a,b)=>b.avg-a.avg);
+  res.forEach(r=>{
+    if(!map[r.student_id])map[r.student_id]={name:r.student_name,testScores:[],journalTotal:0,journalMax:0,student_id:r.student_id};
+    map[r.student_id].testScores.push(r.percent);
+  });
+
+  // --- Jurnal ballari ---
+  try {
+    const gids = gf ? [gf] : myGroups.map(g=>g.id);
+    let jq = sb.from('journal_entries').select('*').in('group_id', gids);
+    if(mf){jq=jq.gte('lesson_date',mf+'-01').lte('lesson_date',mf+'-31');}
+    const {data:jEntries}=await jq;
+    const cats=myCategories;
+    (jEntries||[]).forEach(e=>{
+      const sid=e.student_id;
+      const stu=myStudents.find(s=>s.id===sid);
+      if(!stu)return;
+      if(!map[sid]){map[sid]={name:stu.last_name+' '+stu.first_name,testScores:[],journalTotal:0,journalMax:0,student_id:sid};}
+      const grCats=cats.filter(c=>c.group_id===e.group_id||!c.group_id);
+      grCats.forEach(c=>{
+        const v=(e.grades||{})[c.id];
+        if(v!==undefined&&v!==''){map[sid].journalTotal+=parseFloat(v)||0;map[sid].journalMax+=c.max_score;}
+      });
+    });
+  } catch(err){}
+
   const medals=['🥇','🥈','🥉'];
-  document.getElementById('rankingContent').innerHTML=ranked.length
-    ?`<div class="card"><div class="tbl-wrap"><table>
-        <thead><tr><th>O'rin</th><th>O'quvchi</th><th>Testlar</th><th>O'rtacha %</th><th>Daraja</th></tr></thead>
+  const ranked=Object.values(map).map(s=>{
+    const testAvg=s.testScores.length?Math.round(s.testScores.reduce((a,b)=>a+b,0)/s.testScores.length):null;
+    const journalPct=s.journalMax>0?Math.round(s.journalTotal/s.journalMax*100):null;
+    let combined;
+    if(testAvg!==null&&journalPct!==null) combined=Math.round(testAvg*0.6+journalPct*0.4);
+    else if(testAvg!==null) combined=testAvg;
+    else combined=journalPct||0;
+    return{...s,testAvg,journalPct,combined};
+  }).sort((a,b)=>b.combined-a.combined);
+
+  wrap.innerHTML=ranked.length
+    ?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px;background:rgba(124,111,247,.08);border:1px solid rgba(124,111,247,.2);border-radius:8px;padding:8px 12px">
+        ℹ️ Reyting = Test o'rtachasi (60%) + Jurnal ballari (40%)
+      </div>
+      <div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>O'rin</th><th>O'quvchi</th><th>Test o'rtacha</th><th>Jurnal</th><th>Umumiy</th><th>Daraja</th></tr></thead>
         <tbody>${ranked.map((r,i)=>`<tr>
-          <td>${medals[i]||i+1+'.'}</td>
+          <td style="font-size:18px">${medals[i]||i+1+'.'}</td>
           <td><strong>${r.name}</strong></td>
-          <td>${r.scores.length}</td>
-          <td><span style="font-weight:700;color:${r.avg>=70?'var(--green)':r.avg>=50?'var(--amber)':'var(--red)'}">${r.avg}%</span></td>
-          <td><span class="badge ${r.avg>=70?'badge-green':r.avg>=50?'badge-amber':'badge-red'}">${r.avg>=70?"A'lo":r.avg>=50?'Yaxshi':'Qoniqarli'}</span></td>
+          <td>${r.testAvg!==null?`<span style="color:var(--blue);font-weight:700">${r.testAvg}%</span> <span style="font-size:11px;color:var(--muted)">(${r.testScores.length} test)</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+          <td>${r.journalPct!==null?`<span style="color:var(--amber);font-weight:700">${r.journalPct}%</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+          <td><span style="font-weight:800;font-size:15px;color:${r.combined>=70?'var(--green)':r.combined>=50?'var(--amber)':'var(--red)'}">${r.combined}%</span></td>
+          <td><span class="badge ${r.combined>=70?'badge-green':r.combined>=50?'badge-amber':'badge-red'}">${r.combined>=70?"A'lo":r.combined>=50?'Yaxshi':'Qoniqarli'}</span></td>
         </tr>`).join('')}</tbody>
       </table></div></div>`
     :'<div style="color:var(--muted)">Natijalar yo\'q</div>';
@@ -1838,6 +1949,78 @@ async function downloadResultsPDF(){
 }
 
 function copyLink(link){navigator.clipboard.writeText(link).then(()=>notify('Havola nusxalandi!'));}
+
+// ============================================================
+// STUDENT JOURNAL SCORE POPUP
+// ============================================================
+async function showStudentJournalScore(stuId, stuName) {
+  const stu = myStudents.find(s=>s.id===stuId);
+  if (!stu) { notify('O\'quvchi topilmadi','err'); return; }
+  const gids = stu.groupIds||[];
+  if (!gids.length) { notify('O\'quvchi guruhga biriktirilmagan','err'); return; }
+
+  const {data:entries} = await sb.from('journal_entries').select('*').in('group_id', gids).eq('student_id', stuId).order('lesson_date',{ascending:false});
+  const cats = myCategories;
+  let totalScore=0, totalMax=0;
+  const byDate = {};
+  (entries||[]).forEach(e=>{
+    const grCats=cats.filter(c=>c.group_id===e.group_id||!c.group_id);
+    let dayTotal=0, dayMax=0;
+    grCats.forEach(c=>{
+      const v=(e.grades||{})[c.id];
+      if(v!==undefined&&v!==''){dayTotal+=parseFloat(v)||0;dayMax+=c.max_score;}
+    });
+    byDate[e.lesson_date]={total:dayTotal,max:dayMax,att:e.attendance,gid:e.group_id};
+    totalScore+=dayTotal; totalMax+=dayMax;
+  });
+
+  const pct = totalMax>0?Math.round(totalScore/totalMax*100):0;
+  const ATTl={present:'✅ Keldi',absent:'❌ Kelmadi',late:'🕐 Kech',excused:'📋 Sababli'};
+
+  const modal = document.createElement('div');
+  modal.className='modal-overlay open';
+  modal.style.zIndex='300';
+  modal.innerHTML=`<div class="modal" style="max-width:520px">
+    <div class="modal-title">📋 ${stuName} — Jurnal ballari</div>
+    <div style="display:flex;gap:16px;margin-bottom:16px;background:var(--bg3);border-radius:10px;padding:14px">
+      <div style="text-align:center;flex:1">
+        <div style="font-size:28px;font-weight:900;color:var(--purple)">${totalScore}</div>
+        <div style="font-size:11px;color:var(--muted)">Jami ball</div>
+      </div>
+      <div style="text-align:center;flex:1">
+        <div style="font-size:28px;font-weight:900;color:var(--muted)">${totalMax}</div>
+        <div style="font-size:11px;color:var(--muted)">Maksimal</div>
+      </div>
+      <div style="text-align:center;flex:1">
+        <div style="font-size:28px;font-weight:900;color:${pct>=70?'var(--green)':pct>=50?'var(--amber)':'var(--red)'}">${pct}%</div>
+        <div style="font-size:11px;color:var(--muted)">Foiz</div>
+      </div>
+    </div>
+    <div style="max-height:300px;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--bg3)">
+          <th style="padding:8px 10px;text-align:left;color:var(--muted)">Sana</th>
+          <th style="padding:8px 10px;text-align:center;color:var(--muted)">Davomat</th>
+          <th style="padding:8px 10px;text-align:center;color:var(--muted)">Ball</th>
+        </tr></thead>
+        <tbody>
+          ${Object.entries(byDate).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,v])=>`
+          <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+            <td style="padding:7px 10px">${new Date(d+'T00:00:00').toLocaleDateString('uz-UZ',{day:'numeric',month:'short'})}</td>
+            <td style="padding:7px 10px;text-align:center;font-size:12px">${ATTl[v.att]||v.att}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:var(--purple)">${v.total}${v.max?'/'+v.max:''}</td>
+          </tr>`).join('')}
+          ${!Object.keys(byDate).length?'<tr><td colspan="3" style="padding:20px;text-align:center;color:var(--muted)">Yozuvlar yo\'q</td></tr>':''}
+        </tbody>
+      </table>
+    </div>
+    <div style="text-align:right;margin-top:16px">
+      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Yopish</button>
+    </div>
+  </div>`;
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  document.body.appendChild(modal);
+}
 
 // ============================================================
 // SELECTS POPULATION
