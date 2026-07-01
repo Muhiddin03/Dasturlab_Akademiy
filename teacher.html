@@ -574,62 +574,113 @@ A) ...
 
 <!-- CREATE TEST -->
 <div class="modal-overlay" id="ov-createTest">
-  <div class="modal modal-lg">
+  <div class="modal modal-lg" style="max-width:780px">
     <div class="modal-title">Test yaratish</div>
-    <div class="form-grid">
-      <div class="form-row"><label class="form-label">Test nomi</label>
-        <input class="inp" id="tName" placeholder="Mavzu nomi..."></div>
-      <div class="form-row"><label class="form-label">Guruh</label>
-        <select class="inp" id="tGroup" onchange="onTestGroupChange()">
-          <option value="">Tanlang...</option>
-        </select></div>
+
+    <!-- Parametrlar -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div class="form-grid">
+        <div class="form-row"><label class="form-label">Test nomi</label>
+          <input class="inp" id="tName" placeholder="Mavzu nomi..." style="margin:0"></div>
+        <div class="form-row"><label class="form-label">Guruh</label>
+          <select class="inp" id="tGroup" style="margin:0">
+            <option value="">Tanlang...</option>
+          </select></div>
+      </div>
+      <div class="form-grid3" style="margin-top:8px">
+        <div class="form-row"><label class="form-label">Vaqt (daqiqa)</label>
+          <input class="inp" id="tTime" type="number" value="30" min="1" style="margin:0"></div>
+        <div class="form-row"><label class="form-label">Holat</label>
+          <select class="inp" id="tStatus" style="margin:0">
+            <option value="draft">Qoralama</option>
+            <option value="active">Faol (hoziroq)</option>
+          </select></div>
+        <div class="form-row"><label class="form-label">Barcha guruhlarga</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;margin-top:6px">
+            <input type="checkbox" id="tAllGroups"> Ha
+          </label></div>
+      </div>
+      <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="tShuffleQ" checked> Savollar aralash
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="tShuffleO" checked> Variantlar aralash
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="tShowResult" checked> Natijani ko'rsatish
+        </label>
+      </div>
     </div>
-    <div class="form-row"><label class="form-label">Barcha guruhlarga ham qo'llash</label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-        <input type="checkbox" id="tAllGroups"> Ha, barcha guruhlarimga ham yuboring
-      </label>
+
+    <!-- Tabs: Qo'lda / JSON / Matn -->
+    <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <button id="ctab-manual" onclick="switchCreateTab('manual')"
+        style="flex:1;padding:9px;font-size:13px;font-weight:600;background:var(--purple);color:#fff;border:none;cursor:pointer">
+        ✍️ Qo'lda yozish
+      </button>
+      <button id="ctab-json" onclick="switchCreateTab('json')"
+        style="flex:1;padding:9px;font-size:13px;font-weight:600;background:var(--bg3);color:var(--muted);border:none;cursor:pointer;border-left:1px solid var(--border)">
+        📄 JSON yuklash
+      </button>
+      <button id="ctab-text" onclick="switchCreateTab('text')"
+        style="flex:1;padding:9px;font-size:13px;font-weight:600;background:var(--bg3);color:var(--muted);border:none;cursor:pointer;border-left:1px solid var(--border)">
+        📋 Copy-paste
+      </button>
     </div>
-    <div class="form-grid3">
-      <div class="form-row"><label class="form-label">Test turi</label>
-        <select class="inp" id="tType">
-          <option value="multiple">Variantli (A/B/C/D)</option>
-          <option value="written">Yozma</option>
-          <option value="mixed">Aralash</option>
-        </select></div>
-      <div class="form-row"><label class="form-label">Vaqt (daqiqa)</label>
-        <input class="inp" id="tTime" type="number" value="30" min="1"></div>
-      <div class="form-row"><label class="form-label">Holat</label>
-        <select class="inp" id="tStatus">
-          <option value="draft">Qoralama</option>
-          <option value="active">Faol (hoziroq)</option>
-        </select></div>
+
+    <!-- Panel: Qo'lda -->
+    <div id="cpanel-manual">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <strong style="font-size:13px">Savollar</strong>
+        <button class="btn btn-secondary btn-sm" onclick="addQuestion()">+ Savol qo'shish</button>
+      </div>
+      <div id="questionsWrap" style="max-height:45vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px"></div>
     </div>
-    <div class="form-grid">
-      <div class="form-row"><label class="form-label">Ochilish vaqti (ixtiyoriy)</label>
-        <input class="inp" id="tOpenFrom" type="datetime-local"></div>
-      <div class="form-row"><label class="form-label">Yopilish vaqti (ixtiyoriy)</label>
-        <input class="inp" id="tOpenUntil" type="datetime-local"></div>
+
+    <!-- Panel: JSON -->
+    <div id="cpanel-json" style="display:none">
+      <div style="background:rgba(124,111,247,.08);border:1px solid rgba(124,111,247,.2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--muted)">
+        <strong style="color:var(--text);display:block;margin-bottom:6px">JSON format:</strong>
+        <pre style="font-size:11px;color:#c4b5fd;margin:0">{ "name": "Test nomi", "questions": [
+  { "question": "Savol?", "type": "multiple", "options": ["A","B","C","D"], "correct": 0 },
+  { "question": "Yozma savol", "type": "written" }
+] }</pre>
+      </div>
+      <div style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer"
+           onclick="document.getElementById('cJsonFile').click()"
+           ondragover="event.preventDefault()" ondrop="handleCreateFileDrop(event)">
+        <div style="font-size:28px;margin-bottom:6px">📂</div>
+        <div style="font-size:13px;font-weight:600">JSON faylni tanlang yoki tashlang</div>
+        <input type="file" id="cJsonFile" accept=".json" style="display:none" onchange="handleCreateJson(event)">
+      </div>
+      <div id="cJsonPreview" style="margin-top:12px"></div>
     </div>
-    <div style="display:flex;gap:16px;margin-bottom:14px">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="tShuffleQ" checked> Savollarni aralashtirish
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="tShuffleO" checked> Variantlarni aralashtirish
-      </label>
-      <label style="display:flex;align-items:center;gap=6px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="tShowResult" checked> Natijani ko'rsatish
-      </label>
+
+    <!-- Panel: Copy-paste -->
+    <div id="cpanel-text" style="display:none">
+      <div style="background:rgba(124,111,247,.08);border:1px solid rgba(124,111,247,.2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--muted)">
+        <strong style="color:var(--text);display:block;margin-bottom:4px">Format:</strong>
+        <pre style="font-size:11px;color:#c4b5fd;margin:0">1. Savol matni?
+A) Birinchi javob
+B) Ikkinchi javob
+C) To'g'ri javob
+D) Boshqa javob
+Javob: C</pre>
+      </div>
+      <textarea class="inp" id="cManualText" style="min-height:160px;font-family:monospace;font-size:12px" placeholder="Savollarni shu yerga yozing yoki nusxalab qo'ying..."></textarea>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="parseCreateText()">Tahlil qilish ▶</button>
+      <div id="cTextPreview" style="margin-top:12px"></div>
     </div>
-    <hr style="border-color:var(--border);margin-bottom:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <strong style="font-size:14px">Savollar</strong>
-      <button class="btn btn-secondary btn-sm" onclick="addQuestion()">+ Savol qo'shish</button>
+
+    <!-- Imported questions count badge -->
+    <div id="cImportedBadge" style="display:none;margin-top:10px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:8px 12px;font-size:13px">
+      ✅ <strong id="cImportedCount">0</strong> ta savol yuklandi — parametrlarni to'ldirib saqlang
     </div>
-    <div id="questionsWrap"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
       <button class="btn btn-secondary" onclick="closeM('createTest')">Bekor</button>
-      <button class="btn btn-primary" onclick="saveTest()">Test saqlash</button>
+      <button class="btn btn-primary" onclick="saveTest()">💾 Test saqlash</button>
     </div>
   </div>
 </div>
@@ -1759,7 +1810,7 @@ function renderMyTests() {
           ${t.status==='active'?'⏸ Yopish':t.status==='draft'?'▶ Faollashtirish':'🔄 Ochish'}
         </button>
       </div>
-      <button class="btn btn-danger btn-xs" onclick="deleteTest('${t.id}')" style="width:100%;padding:6px">🗑 O'chirish</button>
+      <button class="btn btn-danger btn-xs" onclick="confirmDeleteTest('${t.id}','${t.name}')" style="width:100%;padding:6px">🗑 O'chirish</button>
     </div>`;
   }).join('')||'<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px 20px"><div style="font-size:40px;margin-bottom:12px">📝</div>Testlar topilmadi</div>';
 }
@@ -1772,12 +1823,9 @@ async function viewTestQuestions(testId) {
   if (!test) return;
   document.getElementById('vtqTitle').textContent = test.name + ' — savollar';
 
-  let qs = myQuestions.filter(q => q.test_id === testId);
-  if (!qs.length) {
-    // load from DB
-    const { data } = await sb.from('questions').select('*').eq('test_id', testId).order('order_num');
-    qs = data || [];
-  }
+  // Always load fresh from DB to get all questions
+  const { data } = await sb.from('questions').select('*').eq('test_id', testId).order('order_num');
+  const qs = data || [];
 
   const letters = ['A','B','C','D'];
   document.getElementById('vtqContent').innerHTML = qs.length
@@ -1925,11 +1973,8 @@ async function openEditTest(testId) {
   gs.innerHTML = myGroups.map(g => `<option value="${g.id}" ${g.id===t.group_id?'selected':''}>${g.name}</option>`).join('');
 
   // Load existing questions
-  let qs = myQuestions.filter(q => q.test_id === testId);
-  if (!qs.length) {
-    const { data } = await sb.from('questions').select('*').eq('test_id', testId).order('order_num');
-    qs = data || [];
-  }
+  const { data: qdata } = await sb.from('questions').select('*').eq('test_id', testId).order('order_num');
+  const qs = qdata || [];
 
   const letters = ['A','B','C','D'];
   const wrap = document.getElementById('editQuestionsWrap');
@@ -2049,10 +2094,51 @@ async function toggleTestStatus(id,cur) {
   await loadAll();
 }
 
+function confirmDeleteTest(id, name) {
+  // Remove any existing undo toast
+  document.getElementById('undoDelToast')?.remove();
+
+  let timer;
+  const toast = document.createElement('div');
+  toast.id = 'undoDelToast';
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e1b4b;border:1px solid rgba(239,68,68,.4);border-radius:12px;padding:12px 18px;display:flex;align-items:center;gap:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);font-size:13px;min-width:280px';
+  let secs = 5;
+  const render = () => {
+    toast.innerHTML = `
+      <span style="color:#fca5a5">🗑</span>
+      <span style="flex:1;color:var(--text)">"${name}" <span style="color:var(--muted)">o'chiriladi...</span> <strong style="color:#f87171">${secs}</strong></span>
+      <button onclick="undoDeleteTest()" style="background:rgba(124,111,247,.2);color:#c4b5fd;border:1px solid rgba(124,111,247,.4);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:600">↩ Bekor</button>`;
+  };
+  render();
+  document.body.appendChild(toast);
+
+  window._pendingDeleteId = id;
+  timer = setInterval(() => {
+    secs--;
+    if (secs <= 0) {
+      clearInterval(timer);
+      toast.remove();
+      deleteTest(id);
+    } else {
+      render();
+    }
+  }, 1000);
+  window._deleteTimer = timer;
+}
+
+function undoDeleteTest() {
+  clearInterval(window._deleteTimer);
+  window._pendingDeleteId = null;
+  document.getElementById('undoDelToast')?.remove();
+  notify('O\'chirish bekor qilindi ↩');
+}
+
 async function deleteTest(id) {
-  if(!confirm('Testni o\'chirishni tasdiqlaysizmi?'))return;
-  await sb.from('tests').delete().eq('id',id);
-  notify('Test o\'chirildi');await loadAll();
+  await sb.from('quiz_results').delete().eq('test_id', id);
+  await sb.from('questions').delete().eq('test_id', id);
+  await sb.from('tests').delete().eq('id', id);
+  notify('Test o\'chirildi 🗑');
+  await loadAll();
 }
 
 async function viewTestResults(testId) {
@@ -2086,65 +2172,124 @@ let qCounter=0;
 
 function onTestGroupChange(){}
 
-function addQuestion(type='multiple') {
+// qOptCounts — har savol uchun variant soni
+const qOptCounts = {};
+
+function addQuestion(type='multiple', initVals=null) {
   qCounter++;
-  const id='q'+qCounter;
-  const wrap=document.getElementById('questionsWrap');
-  const div=document.createElement('div');
-  div.className='q-block'; div.id='qb-'+id;
-  div.innerHTML=`
+  const id = 'q' + qCounter;
+  const wrap = document.getElementById('questionsWrap');
+  const div = document.createElement('div');
+  div.className = 'q-block'; div.id = 'qb-' + id;
+  qOptCounts[id] = initVals ? initVals.vals.length : 4;
+  div.innerHTML = `
     <div class="q-block-header">
-      <span class="q-num">${qCounter}</span>
-      <select class="inp" style="width:auto;padding:5px 8px;font-size:12px" onchange="changeQType('${id}',this.value)">
-        <option value="multiple">Variantli (A/B/C/D)</option>
+      <span class="q-num" style="min-width:22px;text-align:center">${qCounter}</span>
+      <select class="inp" style="width:auto;padding:5px 8px;font-size:12px" onchange="changeQType('${id}',this.value)" id="qtype-${id}">
+        <option value="multiple">Variantli</option>
         <option value="written">Yozma</option>
       </select>
-      <input class="inp" style="flex:1;margin:0" placeholder="Savol matni..." id="qt-${id}">
-      <button class="btn btn-danger btn-xs" onclick="removeQuestion('${id}')">×</button>
+      <input class="inp" style="flex:1;margin:0;font-size:13px" placeholder="Savol matni..." id="qt-${id}"
+        value="${initVals?.text||''}">
+      <input class="inp" style="width:52px;margin:0;padding:5px 7px;font-size:12px;text-align:center" id="qscore-${id}"
+        type="number" value="${initVals?.score||1}" min="1" title="Ball">
+      <button class="btn btn-danger btn-xs" onclick="removeQuestion('${id}')" style="padding:5px 8px;flex-shrink:0">✕</button>
     </div>
-    <div id="qopts-${id}">
-      ${buildMultipleOpts(id)}
+    <div id="qopts-${id}" style="margin-top:6px">
+      ${type==='written'
+        ? `<textarea class="inp" id="qsample-${id}" placeholder="Namuna javob (ixtiyoriy)..." style="min-height:60px;font-size:12px"></textarea>`
+        : buildMultipleOpts(id, initVals?.vals||['','','',''], initVals?.correct||0)}
     </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-      <label class="form-label" style="margin:0">Ball:</label>
-      <input class="inp" style="width:60px;margin:0;padding:5px 8px" id="qscore-${id}" type="number" value="1" min="1">
+    ${type==='multiple'?`<div style="display:flex;gap:6px;margin-top:6px">
+      <button class="btn btn-secondary btn-xs" onclick="addVariant('${id}')" style="font-size:11px">+ Variant</button>
+      <button class="btn btn-secondary btn-xs" onclick="removeVariant('${id}')" style="font-size:11px">− Variant</button>
+    </div>`:''}
+    <div id="qvarbtns-${id}" style="display:${type==='multiple'?'flex':'none'};gap:6px;margin-top:6px">
     </div>
   `;
+  if (type==='written' && initVals?.text) {
+    setTimeout(()=>{ const el=document.getElementById('qsample-'+id); if(el) el.value=initVals.sample||''; },0);
+  }
   wrap.appendChild(div);
 }
 
-function buildMultipleOpts(id,vals=['','','',''],correct=0){
-  const letters=['A','B','C','D'];
-  return vals.map((v,i)=>`
-    <div class="opt-row">
+// opt counter per question (separate from qOptCounts to track current DOM state)
+function addVariant(id) {
+  const count = document.querySelectorAll(`#qopts-${id} .opt-row`).length;
+  if (count >= 6) { notify('Maksimal 6 ta variant', 'err'); return; }
+  const letters = ['A','B','C','D','E','F'];
+  const newIdx = count;
+  const row = document.createElement('div');
+  row.className = 'opt-row'; row.id = `optrow-${id}-${newIdx}`;
+  row.innerHTML = `
+    <span class="opt-letter" id="ol-${id}-${newIdx}" onclick="setCorrect('${id}',${newIdx})">${letters[newIdx]}</span>
+    <input class="inp" style="flex:1;margin:0;padding:7px 10px;font-size:13px" placeholder="Variant ${letters[newIdx]}..." id="ov-${id}-${newIdx}">
+  `;
+  document.getElementById('qopts-'+id).appendChild(row);
+}
+
+function removeVariant(id) {
+  const rows = document.querySelectorAll(`#qopts-${id} .opt-row`);
+  if (rows.length <= 2) { notify('Kamida 2 ta variant kerak', 'err'); return; }
+  rows[rows.length-1].remove();
+  // If removed row was correct, reset to 0
+  const lastIdx = rows.length - 1;
+  const wasCorrect = document.querySelector(`#ol-${id}-${lastIdx}`)?.classList.contains('correct');
+  if (!wasCorrect || !document.querySelector(`#ol-${id}-${lastIdx}`)) return;
+  document.querySelectorAll(`[id^="ol-${id}-"]`).forEach((el,i) => el.classList.toggle('correct', i===0));
+}
+
+function buildMultipleOpts(id, vals=['','','',''], correct=0) {
+  const letters = ['A','B','C','D','E','F'];
+  return vals.map((v,i) => `
+    <div class="opt-row" id="optrow-${id}-${i}">
       <span class="opt-letter${i===correct?' correct':''}" id="ol-${id}-${i}" onclick="setCorrect('${id}',${i})">${letters[i]}</span>
-      <input class="inp" style="flex:1;margin:0;padding:7px 10px" placeholder="Variant ${letters[i]}..." id="ov-${id}-${i}" value="${v}">
+      <input class="inp" style="flex:1;margin:0;padding:7px 10px;font-size:13px" placeholder="Variant ${letters[i]}..." id="ov-${id}-${i}" value="${v}">
     </div>`).join('');
 }
 
-function setCorrect(id,idx){
-  document.querySelectorAll(`[id^="ol-${id}-"]`).forEach((el,i)=>{
-    el.classList.toggle('correct',i===idx);
+function setCorrect(id, idx) {
+  document.querySelectorAll(`[id^="ol-${id}-"]`).forEach((el,i) => {
+    el.classList.toggle('correct', i===idx);
   });
 }
 
-function getCorrect(id){
-  let c=0;
-  document.querySelectorAll(`[id^="ol-${id}-"]`).forEach((el,i)=>{if(el.classList.contains('correct'))c=i;});
+function getCorrect(id) {
+  let c = 0;
+  document.querySelectorAll(`[id^="ol-${id}-"]`).forEach((el,i) => { if(el.classList.contains('correct')) c=i; });
   return c;
 }
 
-function changeQType(id,type){
-  const wrap=document.getElementById('qopts-'+id);
-  if(type==='multiple'){
-    wrap.innerHTML=buildMultipleOpts(id);
+function changeQType(id, type) {
+  const wrap = document.getElementById('qopts-'+id);
+  const varBtns = document.getElementById('qvarbtns-'+id);
+  if (type==='multiple') {
+    wrap.innerHTML = buildMultipleOpts(id);
+    if (varBtns) varBtns.style.display = 'flex';
+    // Insert +/- buttons after opts if not present
+    const existing = document.querySelector(`#qb-${id} .var-ctrl`);
+    if (!existing) {
+      const ctrl = document.createElement('div');
+      ctrl.className = 'var-ctrl';
+      ctrl.style.cssText = 'display:flex;gap:6px;margin-top:6px';
+      ctrl.innerHTML = `<button class="btn btn-secondary btn-xs" onclick="addVariant('${id}')" style="font-size:11px">+ Variant</button>
+        <button class="btn btn-secondary btn-xs" onclick="removeVariant('${id}')" style="font-size:11px">− Variant</button>`;
+      wrap.parentNode.insertBefore(ctrl, wrap.nextSibling);
+    }
   } else {
-    wrap.innerHTML=`<textarea class="inp" id="qsample-${id}" placeholder="Namuna javob (ixtiyoriy, o'qituvchiga yo'riqnoma uchun)..."></textarea>`;
+    wrap.innerHTML = `<textarea class="inp" id="qsample-${id}" placeholder="Namuna javob (ixtiyoriy)..." style="min-height:60px;font-size:12px"></textarea>`;
+    if (varBtns) varBtns.style.display = 'none';
+    document.querySelector(`#qb-${id} .var-ctrl`)?.remove();
   }
 }
 
-function removeQuestion(id){
+function removeQuestion(id) {
   document.getElementById('qb-'+id)?.remove();
+  // Renumber remaining
+  document.querySelectorAll('.q-block').forEach((el,i) => {
+    const numEl = el.querySelector('.q-num');
+    if (numEl) numEl.textContent = i+1;
+  });
 }
 
 async function saveTest() {
@@ -2160,6 +2305,11 @@ async function saveTest() {
   if(!name){notify('Test nomini kiriting','err');return;}
   if(!gid&&!allGrps){notify('Guruh tanlang yoki barcha guruhlarga belgilang','err');return;}
 
+  // If imported via JSON/text tab, load them into manual first
+  if(window._pendingImport&&window._pendingImport.length){
+    importToManual(window._pendingImport);
+    await new Promise(r=>setTimeout(r,50));
+  }
   // Collect questions
   const qBlocks=[...document.querySelectorAll('.q-block')];
   if(!qBlocks.length){notify('Kamida bitta savol qo\'shing','err');return;}
@@ -2179,8 +2329,13 @@ async function saveTest() {
 
     const qRows=qBlocks.map((b,i)=>{
       const bid=b.id.replace('qb-','');
-      const qtype=b.querySelector('select')?.value||'multiple';
-      const opts=qtype==='multiple'?[0,1,2,3].map(j=>document.getElementById(`ov-${bid}-${j}`)?.value||''):null;
+      const qtype=document.getElementById('qtype-'+bid)?.value||b.querySelector('select')?.value||'multiple';
+      // Collect all opts dynamically
+      let opts=null;
+      if(qtype==='multiple'){
+        opts=[];
+        b.querySelectorAll('.opt-row input.inp').forEach(inp=>opts.push(inp.value||''));
+      }
       return{
         test_id:test.id,
         question_text:document.getElementById(`qt-${bid}`)?.value||'',
@@ -2729,9 +2884,132 @@ async function saveImportedTest() {
 // ============================================================
 // MODAL HELPERS
 // ============================================================
+function switchCreateTab(tab) {
+  ['manual','json','text'].forEach(t => {
+    document.getElementById('cpanel-'+t).style.display = t===tab ? '' : 'none';
+    const btn = document.getElementById('ctab-'+t);
+    btn.style.background = t===tab ? 'var(--purple)' : 'var(--bg3)';
+    btn.style.color = t===tab ? '#fff' : 'var(--muted)';
+  });
+}
+
+function handleCreateJson(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      loadImportedIntoCreate(data);
+    } catch(err) { notify('JSON formati noto\'g\'ri', 'err'); }
+  };
+  reader.readAsText(file);
+}
+
+function handleCreateFileDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try { loadImportedIntoCreate(JSON.parse(ev.target.result)); }
+    catch(err) { notify('JSON xato', 'err'); }
+  };
+  reader.readAsText(file);
+}
+
+function parseCreateText() {
+  const text = document.getElementById('cManualText').value.trim();
+  if (!text) { notify('Matn kiriting', 'err'); return; }
+  const tempImported = [];
+  const blocks = text.split(/\n(?=\d+[\.)\s])/).filter(b => b.trim());
+  blocks.forEach((block,i) => {
+    const lines = block.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+    if (!lines.length) return;
+    const qText = lines[0].replace(/^\d+[\.)\s]*/, '').trim();
+    const opts=[]; let correct=0;
+    lines.slice(1).forEach(line=>{
+      const om=line.match(/^[A-Da-d][\.)\s]+(.+)/);
+      const am=line.match(/^(Javob|Answer)[\s:]*([A-Da-d])/i);
+      if(om) opts.push(om[1].trim());
+      if(am) correct='abcd'.indexOf(am[2].toLowerCase());
+    });
+    tempImported.push({
+      question_text:qText, question_type:opts.length?'multiple':'written',
+      options:opts.length?opts:null, correct_index:correct, max_score:1
+    });
+  });
+  if(!tempImported.length){notify('Savollar aniqlanmadi','err');return;}
+  const fakeData={questions:tempImported};
+  loadImportedIntoCreate(fakeData, document.getElementById('cTextPreview'));
+}
+
+function loadImportedIntoCreate(data, previewWrap=null) {
+  const qs = data.questions || data;
+  if (!Array.isArray(qs)||!qs.length){notify('Savollar topilmadi','err');return;}
+  const wrap = previewWrap || document.getElementById('cJsonPreview');
+
+  // Show preview with all questions editable
+  const letters=['A','B','C','D','E','F'];
+  wrap.innerHTML = `
+    <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;display:flex;justify-content:space-between;align-items:center">
+      <span>✅ <strong>${qs.length}</strong> ta savol aniqlandi</span>
+      <button class="btn btn-primary btn-sm" onclick="importToManual(${JSON.stringify(qs).replace(/</g,'&lt;').replace(/>/g,'&gt;')})">
+        ✍️ Qo'lda tahrirlashga o'tish
+      </button>
+    </div>
+    <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+      ${qs.map((q,i)=>`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px">
+        <div style="font-weight:600;margin-bottom:4px">${i+1}. ${q.question||q.question_text||''}</div>
+        ${q.type!=='written'&&(q.options||[]).length
+          ? (q.options||[]).map((o,j)=>`<span style="color:${j===(q.correct??q.correct_index??0)?'#86efac':'var(--muted)'}">
+              ${letters[j]}) ${o}${j===(q.correct??q.correct_index??0)?' ✓':''}</span> `).join('')
+          : '<span style="color:#c4b5fd">✍️ Yozma savol</span>'}
+      </div>`).join('')}
+    </div>`;
+
+  // Set test name if present
+  if(data.name||data.nom) document.getElementById('tName').value=data.name||data.nom;
+
+  // Store for saving
+  window._pendingImport = qs;
+  document.getElementById('cImportedBadge').style.display='block';
+  document.getElementById('cImportedCount').textContent=qs.length;
+}
+
+function importToManual(qs) {
+  // Switch to manual tab and populate questions
+  switchCreateTab('manual');
+  document.getElementById('questionsWrap').innerHTML='';
+  qCounter=0;
+  qs.forEach(q=>{
+    const type=(q.type==='written'||q.question_type==='written')?'written':'multiple';
+    addQuestion(type, {
+      text: q.question||q.question_text||'',
+      vals: q.options||['','','',''],
+      correct: q.correct??q.correct_index??0,
+      score: q.score||q.max_score||1,
+      sample: q.sample_answer||''
+    });
+  });
+  window._pendingImport=null;
+  document.getElementById('cImportedBadge').style.display='none';
+  notify('Savollar qo\'lda tahrirga o\'tkazildi ✅');
+}
+
 function openM(name){
   document.getElementById('ov-'+name).classList.add('open');
-  if(name==='createTest'){document.getElementById('questionsWrap').innerHTML='';qCounter=0;addQuestion();}
+  if(name==='createTest'){
+    document.getElementById('questionsWrap').innerHTML='';
+    qCounter=0;
+    window._pendingImport=null;
+    document.getElementById('cImportedBadge').style.display='none';
+    // fill group select
+    const gs=document.getElementById('tGroup');
+    gs.innerHTML='<option value="">Tanlang...</option>'+myGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    switchCreateTab('manual');
+    addQuestion();
+  }
 }
 function closeM(name){document.getElementById('ov-'+name).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(ov=>{
