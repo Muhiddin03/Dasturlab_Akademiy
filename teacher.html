@@ -897,62 +897,63 @@ function showApp() {
 async function loadAll() {
   const tid = currentUser.id;
   try {
-    // Guruhlarim
+    // 1. Guruhlar
     const { data: grp } = await sb.from('groups').select('*').eq('teacher_id', tid);
     myGroups = grp || [];
-    const gids = myGroups.map(g=>g.id);
-
+    const gids = myGroups.map(g => g.id);
     if (!gids.length) { renderAll(); return; }
 
-    const [sg, st, ts, rs, cats, wa] = await Promise.all([
+    // 2. Parallel: o'quvchilar, testlar, kategoriyalar
+    const [sgRes, stRes, tsRes, catsRes] = await Promise.all([
       sb.from('student_groups').select('*').in('group_id', gids),
       sb.from('students').select('*'),
       sb.from('tests').select('*').eq('teacher_id', tid).order('created_at',{ascending:false}),
-      sb.from('results').select('*').order('taken_at',{ascending:false}),
-      sb.from('grade_categories').select('*').eq('teacher_id', tid),
-      sb.from('written_answers').select('*').in('test_id', [])  // will refetch below
+      sb.from('grade_categories').select('*').eq('teacher_id', tid)
     ]);
 
-    myStudentGroups = sg.data||[];
-    const stuIds = [...new Set(myStudentGroups.map(x=>x.student_id))];
-    // Only students in my groups
-    myStudents = (st.data||[]).filter(s => stuIds.includes(s.id));
+    myStudentGroups = sgRes.data || [];
+    const stuIds = [...new Set(myStudentGroups.map(x => x.student_id))];
+    myStudents = (stRes.data || []).filter(s => stuIds.includes(s.id));
     myStudents.forEach(s => {
-      s.groupIds = myStudentGroups.filter(x=>x.student_id===s.id).map(x=>x.group_id);
+      s.groupIds = myStudentGroups.filter(x => x.student_id === s.id).map(x => x.group_id);
     });
 
-    myTests = ts.data||[];
-    const testIds = myTests.map(t=>t.id);
-    // Filter results to my students and my tests
-    const allRes = rs.data||[];
-    myResults = allRes.filter(r => stuIds.includes(r.student_id) || testIds.includes(r.test_id));
-    myCategories = cats.data||[];
+    myTests = tsRes.data || [];
+    myCategories = catsRes.data || [];
+    const testIds = myTests.map(t => t.id);
 
-    // Written answers for my tests
-    if (testIds.length) {
-      const { data: waData } = await sb.from('written_answers').select('*').in('test_id', testIds);
-      writtenAnswers = waData||[];
-    } else writtenAnswers=[];
+    // 3. Parallel: natijalar, savollar, yozma javoblar, jurnal
+    const p2 = [
+      testIds.length
+        ? sb.from('quiz_results').select('*').in('test_id', testIds).order('taken_at',{ascending:false})
+        : Promise.resolve({data:[]}),
+      testIds.length
+        ? sb.from('questions').select('id,test_id,question_type,order_num').in('test_id', testIds)
+        : Promise.resolve({data:[]}),
+      testIds.length
+        ? sb.from('written_answers').select('*').in('test_id', testIds)
+        : Promise.resolve({data:[]}),
+      sb.from('journal_entries').select('*').in('group_id', gids)
+    ];
+    const [rsRes, qRes, waRes, jRes] = await Promise.all(p2);
 
-    // Questions (lightweight — only ids and test_id)
-    if (testIds.length) {
-      const { data: qData } = await sb.from('questions').select('*').in('test_id', testIds);
-      myQuestions = qData||[];
-    } else myQuestions=[];
+    myResults = (rsRes.data || []).filter(r =>
+      stuIds.includes(r.student_id) || testIds.includes(r.test_id)
+    );
+    myQuestions = qRes.data || [];
+    writtenAnswers = waRes.data || [];
 
-    // Journal cache — for students table quick display
-    try {
-      const { data: jAll } = await sb.from('journal_entries').select('*').in('group_id', gids);
-      window._journalCache = {};
-      (jAll||[]).forEach(e => {
-        if (!window._journalCache[e.student_id]) window._journalCache[e.student_id] = [];
-        window._journalCache[e.student_id].push(e);
-      });
-    } catch(err) { window._journalCache = {}; }
+    // Journal cache
+    window._journalCache = {};
+    (jRes.data || []).forEach(e => {
+      if (!window._journalCache[e.student_id]) window._journalCache[e.student_id] = [];
+      window._journalCache[e.student_id].push(e);
+    });
 
     renderAll();
   } catch(e) {
-    notify('Xato: '+e.message,'err');
+    notify('Yuklashda xato: ' + e.message, 'err');
+    console.error(e);
   }
 }
 
@@ -1026,7 +1027,10 @@ function monthLabel(m){if(!m)return'—';const[y,mo]=m.split('-');const n=['Yan'
 
 async function renderDashLeaderboard() {
   const month = currentMonth();
-  const res   = myResults.filter(r => r.month === month);
+  const res   = myResults.filter(r => {
+    const m = r.month || (r.taken_at ? r.taken_at.slice(0,7) : '');
+    return m === month;
+  });
   const map   = {};
   // Test natijalari
   res.forEach(r => {
@@ -1080,7 +1084,7 @@ function renderDashRecentResults() {
   document.getElementById('dashRecentResults').innerHTML=list.length
     ?`<div class="tbl-wrap"><table><thead><tr><th>O'quvchi</th><th>Test</th><th>%</th><th>Sana</th></tr></thead><tbody>
         ${list.map(r=>`<tr>
-          <td>${r.student_name}</td>
+          <td>${stuName}</td>
           <td>${myTests.find(t=>t.id===r.test_id)?.name||'—'}</td>
           <td><span style="font-weight:700;color:${r.percent>=70?'var(--green)':r.percent>=50?'var(--amber)':'var(--red)'}">${r.percent}%</span></td>
           <td style="color:var(--muted)">${new Date(r.taken_at).toLocaleDateString('uz-UZ')}</td>
@@ -2134,9 +2138,11 @@ function undoDeleteTest() {
 }
 
 async function deleteTest(id) {
-  await sb.from('quiz_results').delete().eq('test_id', id);
-  await sb.from('questions').delete().eq('test_id', id);
-  await sb.from('tests').delete().eq('id', id);
+  try { await sb.from('quiz_results').delete().eq('test_id', id); } catch(e){}
+  try { await sb.from('written_answers').delete().eq('test_id', id); } catch(e){}
+  try { await sb.from('questions').delete().eq('test_id', id); } catch(e){}
+  const{error}=await sb.from('tests').delete().eq('id', id);
+  if(error){notify('O\'chirishda xato: '+error.message,'err');return;}
   notify('Test o\'chirildi 🗑');
   await loadAll();
 }
@@ -2293,44 +2299,49 @@ function removeQuestion(id) {
 }
 
 async function saveTest() {
-  const name=document.getElementById('tName').value.trim();
-  const gid=document.getElementById('tGroup').value;
-  const type=document.getElementById('tType').value;
-  const time=parseInt(document.getElementById('tTime').value)||30;
-  const status=document.getElementById('tStatus').value;
-  const allGrps=document.getElementById('tAllGroups').checked;
-  const openFrom=document.getElementById('tOpenFrom').value;
-  const openUntil=document.getElementById('tOpenUntil').value;
+  const name    = (document.getElementById('tName')?.value||'').trim();
+  const gid     = document.getElementById('tGroup')?.value||'';
+  const time    = parseInt(document.getElementById('tTime')?.value)||30;
+  const status  = document.getElementById('tStatus')?.value||'draft';
+  const allGrps = document.getElementById('tAllGroups')?.checked||false;
+  const shuffQ  = document.getElementById('tShuffleQ')?.checked!==false;
+  const shuffO  = document.getElementById('tShuffleO')?.checked!==false;
+  const showR   = document.getElementById('tShowResult')?.checked!==false;
 
   if(!name){notify('Test nomini kiriting','err');return;}
-  if(!gid&&!allGrps){notify('Guruh tanlang yoki barcha guruhlarga belgilang','err');return;}
+  if(!gid&&!allGrps){notify('Guruh tanlang','err');return;}
 
-  // If imported via JSON/text tab, load them into manual first
+  // If still on import tab, convert to manual
   if(window._pendingImport&&window._pendingImport.length){
     importToManual(window._pendingImport);
-    await new Promise(r=>setTimeout(r,50));
+    await new Promise(r=>setTimeout(r,80));
   }
-  // Collect questions
-  const qBlocks=[...document.querySelectorAll('.q-block')];
+
+  const qBlocks=[...document.querySelectorAll('#questionsWrap .q-block')];
   if(!qBlocks.length){notify('Kamida bitta savol qo\'shing','err');return;}
+
+  // Detect test_type from questions
+  const qtypes=qBlocks.map(b=>{
+    const bid=b.id.replace('qb-','');
+    return document.getElementById('qtype-'+bid)?.value||b.querySelector('select')?.value||'multiple';
+  });
+  const hasM=qtypes.includes('multiple'), hasW=qtypes.includes('written');
+  const testType=hasM&&hasW?'mixed':hasW?'written':'multiple';
 
   const groupIds=allGrps?myGroups.map(g=>g.id):[gid];
 
+  let saved=0;
   for(const targetGid of groupIds){
     const{data:test,error}=await sb.from('tests').insert({
-      name,group_id:targetGid,teacher_id:currentUser.id,
-      test_type:type,time_limit:time,status,
-      shuffle_questions:document.getElementById('tShuffleQ').checked,
-      shuffle_options:document.getElementById('tShuffleO').checked,
-      show_results:document.getElementById('tShowResult').checked,
-      open_from:openFrom||null,open_until:openUntil||null
+      name, group_id:targetGid, teacher_id:currentUser.id,
+      test_type:testType, time_limit:time, status,
+      shuffle_questions:shuffQ, shuffle_options:shuffO, show_results:showR
     }).select().single();
-    if(error){notify('Test saqlashda xato: '+error.message,'err');return;}
+    if(error){notify('Saqlashda xato: '+error.message,'err');return;}
 
     const qRows=qBlocks.map((b,i)=>{
       const bid=b.id.replace('qb-','');
       const qtype=document.getElementById('qtype-'+bid)?.value||b.querySelector('select')?.value||'multiple';
-      // Collect all opts dynamically
       let opts=null;
       if(qtype==='multiple'){
         opts=[];
@@ -2338,22 +2349,25 @@ async function saveTest() {
       }
       return{
         test_id:test.id,
-        question_text:document.getElementById(`qt-${bid}`)?.value||'',
+        question_text:document.getElementById('qt-'+bid)?.value||'Savol',
         question_type:qtype,
         options:opts,
         correct_index:qtype==='multiple'?getCorrect(bid):null,
-        sample_answer:qtype==='written'?document.getElementById(`qsample-${bid}`)?.value:null,
-        max_score:parseInt(document.getElementById(`qscore-${bid}`)?.value)||1,
+        sample_answer:qtype==='written'?document.getElementById('qsample-'+bid)?.value||null:null,
+        max_score:parseInt(document.getElementById('qscore-'+bid)?.value)||1,
         order_num:i
       };
     });
-    await sb.from('questions').insert(qRows);
+    const{error:qErr}=await sb.from('questions').insert(qRows);
+    if(qErr){notify('Savollar saqlashda xato: '+qErr.message,'err');return;}
+    saved++;
   }
 
   closeM('createTest');
   document.getElementById('questionsWrap').innerHTML='';
   qCounter=0;
-  notify('Test yaratildi! ✅');
+  window._pendingImport=null;
+  notify('Test yaratildi ✅ ('+saved+' guruh)');
   await loadAll();
 }
 
@@ -2465,6 +2479,7 @@ function renderResults(){
   document.getElementById('resultsTbody').innerHTML=list.map((r,i)=>{
     const t=myTests.find(t=>t.id===r.test_id);
     const stu=myStudents.find(s=>s.id===r.student_id);
+    const stuName=r.student_name||(stu?stu.last_name+' '+stu.first_name:'—');
     // Calculate journal total for this student
     let jTotal=0, jMax=0;
     if(stu){
@@ -2474,14 +2489,14 @@ function renderResults(){
     }
     return`<tr>
       <td style="color:var(--muted)">${i+1}</td>
-      <td>${r.student_name}</td>
+      <td>${stuName}</td>
       <td>${t?.name||'—'}</td>
       <td><strong style="color:var(--blue)">${r.score}/${r.total}</strong></td>
       <td><span style="font-weight:700;color:${r.percent>=70?'var(--green)':r.percent>=50?'var(--amber)':'var(--red)'}">${r.percent}%</span></td>
       <td style="color:var(--muted)">${new Date(r.taken_at).toLocaleDateString('uz-UZ')}</td>
       <td><button class="btn btn-secondary btn-xs" onclick="showStudentJournalScore('${r.student_id}','${r.student_name}')">📋 Ko'rish</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted)">Natijalar yo\'q</td></tr>';
+  }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Natijalar yo\'q</td></tr>';
 }
 
 async function renderRanking(){
@@ -2493,11 +2508,13 @@ async function renderRanking(){
   // --- Test natijalari ---
   let res=myResults.filter(r=>myTests.find(t=>t.id===r.test_id));
   if(gf){const tids=myTests.filter(t=>t.group_id===gf).map(t=>t.id);res=res.filter(r=>tids.includes(r.test_id));}
-  if(mf)res=res.filter(r=>r.month===mf);
+  if(mf)res=res.filter(r=>(r.month||(r.taken_at?r.taken_at.slice(0,7):''))===mf);
 
   const map={};
   res.forEach(r=>{
-    if(!map[r.student_id])map[r.student_id]={name:r.student_name,testScores:[],journalTotal:0,journalMax:0,student_id:r.student_id};
+    const rStu=myStudents.find(s=>s.id===r.student_id);
+    const rName=r.student_name||(rStu?rStu.last_name+' '+rStu.first_name:'O\'quvchi');
+    if(!map[r.student_id])map[r.student_id]={name:rName,testScores:[],journalTotal:0,journalMax:0,student_id:r.student_id};
     map[r.student_id].testScores.push(r.percent);
   });
 
@@ -2554,10 +2571,10 @@ function renderMonthly(){
   const gf=document.getElementById('monthGroupSel')?.value||'';
   let res=myResults.filter(r=>myTests.find(t=>t.id===r.test_id));
   if(gf){const tids=myTests.filter(t=>t.group_id===gf).map(t=>t.id);res=res.filter(r=>tids.includes(r.test_id));}
-  const months=[...new Set(res.map(r=>r.month).filter(Boolean))].sort().reverse();
+  const months=[...new Set(res.map(r=>r.month||(r.taken_at?r.taken_at.slice(0,7):'')).filter(Boolean))].sort().reverse();
   document.getElementById('monthlyContent').innerHTML=months.length
     ?months.map(m=>{
-        const mRes=res.filter(r=>r.month===m);
+        const mRes=res.filter(r=>{const _m=r.month||(r.taken_at?r.taken_at.slice(0,7):'');return _m===m;});
         const avg=Math.round(mRes.reduce((a,r)=>a+r.percent,0)/mRes.length);
         return`<div class="card" style="margin-bottom:12px">
           <div class="card-title">${monthLabel(m)} <span style="font-size:13px;color:var(--muted);font-weight:400">${mRes.length} natija · o'rtacha ${avg}%</span></div>
@@ -2688,7 +2705,7 @@ function populateSelects() {
   if (rs) rs.innerHTML = '<option value="">Barcha testlar</option>' + topts;
 
   // Oy filtri
-  const months = [...new Set(myResults.map(r => r.month).filter(Boolean))].sort().reverse();
+  const months = [...new Set(myResults.map(r => r.month||(r.taken_at?r.taken_at.slice(0,7):'')).filter(Boolean))].sort().reverse();
   const mopts  = months.map(m => `<option value="${m}">${monthLabel(m)}</option>`).join('');
   const rm = document.getElementById('rankMonthSel');
   if (rm) rm.innerHTML = '<option value="">Barcha oylar</option>' + mopts;
@@ -3028,7 +3045,7 @@ function notify(msg,type='success'){
   setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},3000);
 }
 
-// =================================== =========================
+// ============================================================
 // INIT
 // ============================================================
 window.addEventListener('load',checkAuth);
