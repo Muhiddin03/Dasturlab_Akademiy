@@ -9,6 +9,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(124,111,247,.25);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(124,111,247,.5)}
 :root{
   --bg:#0f0e1a;--bg2:#1a1829;--bg3:#241f38;
   --card:#1e1c30;--border:#2e2a45;
@@ -66,9 +70,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .badge-amber{background:rgba(245,158,11,.15);color:#fcd34d}
 .badge-blue{background:rgba(59,130,246,.15);color:#93c5fd}
 .badge-purple{background:rgba(124,111,247,.15);color:#c4b5fd}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;overscroll-behavior:contain}
 .modal-overlay.open{display:flex}
-.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:580px;max-height:85vh;overflow-y:auto;margin:auto}
 .modal-lg{max-width:800px}
 .modal-title{font-size:17px;font-weight:700;margin-bottom:20px}
 .form-row{margin-bottom:14px}
@@ -2299,10 +2303,15 @@ function removeQuestion(id) {
 }
 
 async function saveTest() {
-  const name    = (document.getElementById('tName')?.value||'').trim();
-  const gid     = document.getElementById('tGroup')?.value||'';
-  const time    = parseInt(document.getElementById('tTime')?.value)||30;
-  const status  = document.getElementById('tStatus')?.value||'draft';
+  try {
+  const nameEl=document.getElementById('tName');
+  const gidEl=document.getElementById('tGroup');
+  const timeEl=document.getElementById('tTime');
+  const statEl=document.getElementById('tStatus');
+  const name    = nameEl ? nameEl.value.trim() : '';
+  const gid     = gidEl ? gidEl.value : '';
+  const time    = timeEl ? parseInt(timeEl.value)||30 : 30;
+  const status  = statEl ? statEl.value : 'draft';
   const allGrps = document.getElementById('tAllGroups')?.checked||false;
   const shuffQ  = document.getElementById('tShuffleQ')?.checked!==false;
   const shuffO  = document.getElementById('tShuffleO')?.checked!==false;
@@ -2369,6 +2378,7 @@ async function saveTest() {
   window._pendingImport=null;
   notify('Test yaratildi ✅ ('+saved+' guruh)');
   await loadAll();
+  } catch(err) { notify('Xato: '+err.message,'err'); console.error('saveTest error:',err); }
 }
 
 // ============================================================
@@ -3020,10 +3030,19 @@ function openM(name){
     document.getElementById('questionsWrap').innerHTML='';
     qCounter=0;
     window._pendingImport=null;
-    document.getElementById('cImportedBadge').style.display='none';
+    const badge=document.getElementById('cImportedBadge');
+    if(badge) badge.style.display='none';
+    const jsonPrev=document.getElementById('cJsonPreview');
+    if(jsonPrev) jsonPrev.innerHTML='';
+    const textPrev=document.getElementById('cTextPreview');
+    if(textPrev) textPrev.innerHTML='';
+    const cJsonFile=document.getElementById('cJsonFile');
+    if(cJsonFile) cJsonFile.value='';
     // fill group select
     const gs=document.getElementById('tGroup');
-    gs.innerHTML='<option value="">Tanlang...</option>'+myGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    if(gs){
+      gs.innerHTML='<option value="">Tanlang...</option>'+myGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    }
     switchCreateTab('manual');
     addQuestion();
   }
