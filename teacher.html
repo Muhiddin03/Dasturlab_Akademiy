@@ -478,11 +478,19 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="modal-title">Baholash kategoriyasi</div>
     <div class="form-row"><label class="form-label">Kategoriya nomi</label>
       <input class="inp" id="catName" placeholder="Faollik, Uyga vazifa, Og'zaki javob..."></div>
-    <div class="form-row"><label class="form-label">Maksimal ball</label>
-      <input class="inp" id="catMax" type="number" value="10" min="1" max="100"></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Maksimal ball</label>
+        <input class="inp" id="catMax" type="number" value="10" min="1" max="100"></div>
+      <div class="form-row"><label class="form-label">🪙 1 ball = necha coin</label>
+        <input class="inp" id="catMultiplier" type="number" value="1" min="0.1" max="10" step="0.1"
+          placeholder="1"></div>
+    </div>
     <div class="form-row"><label class="form-label">Guruh</label>
       <select class="inp" id="catGroup"></select></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+    <div style="background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:#fcd34d;margin-top:4px">
+      🪙 Masalan: max ball=10, multiplier=2 → max <strong>20 coin</strong> topish mumkin
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
       <button class="btn btn-secondary" onclick="closeM('addCategory')">Bekor</button>
       <button class="btn btn-primary" onclick="saveCategory()">Saqlash</button>
     </div>
@@ -1078,6 +1086,7 @@ async function renderDashLeaderboard() {
     ? ranked.map((r,i) => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
         <span style="font-size:16px;width:24px">${medals[i]}</span>
         <span style="flex:1;font-size:13px">${r.name}</span>
+        <span style="font-weight:700;color:#fcd34d;font-size:12px">🪙 —</span>
         <span style="font-weight:700;color:var(--purple)">${r.combined}%</span>
       </div>`).join('')
     : '<div style="color:var(--muted);font-size:13px">Bu oyda natijalar yo\'q</div>';
@@ -1168,21 +1177,32 @@ function renderMyStudents() {
         <div style="text-align:center">
           <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Test</div>
           <div style="font-weight:700;font-size:15px;color:${res.length?'var(--blue)':'var(--hint)'}">${res.length?testAvg+'%':'—'}</div>
-          <div style="font-size:10px;color:var(--hint)">${res.length} ta topshirgan</div>
+          <div style="font-size:10px;color:var(--hint)">${res.length} ta</div>
         </div>
         <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">
           <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Jurnal</div>
           <div style="font-weight:700;font-size:15px;color:${jPct!==null?'var(--amber)':'var(--hint)'}">${jPct!==null?jPct+'%':'—'}</div>
-          <div style="font-size:10px;color:var(--hint)">${jMax>0?jTotal+'/'+jMax+' ball':'Yozuv yo\'q'}</div>
+          <div style="font-size:10px;color:var(--hint)">${jMax>0?jTotal+'/'+jMax:'—'}</div>
         </div>
-        <div style="text-align:center">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Umumiy</div>
-          <div style="font-weight:800;font-size:17px;color:${combinedColor}">${combined!==null?combined+'%':'—'}</div>
-          <div style="font-size:10px;color:var(--hint)">${combined!==null?(combined>=70?"A'lo":combined>=50?'Yaxshi':'Qoniqarli'):''}</div>
+        <div style="text-align:center;cursor:pointer" onclick="showStudentCoins('${s.id}','${s.last_name} ${s.first_name}')">
+          <div style="font-size:11px;color:#fcd34d;margin-bottom:3px">🪙 Coin</div>
+          <div id="scoin-${s.id}" style="font-weight:800;font-size:15px;color:#fcd34d">...</div>
+          <div style="font-size:10px;color:var(--hint)">bosing</div>
         </div>
       </div>
     </div>`;
   }).join('')||'<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px">O\'quvchilar topilmadi</div>';
+
+  // Load coin totals async
+  list.forEach(async s => {
+    const el = document.getElementById('scoin-'+s.id);
+    if (!el) return;
+    try {
+      const { data } = await sb.from('student_coins').select('amount').eq('student_id', s.id);
+      const total = (data||[]).reduce((sum,r)=>sum+r.amount,0);
+      el.textContent = '🪙 '+total;
+    } catch(e) { el.textContent = '—'; }
+  });
 }
 
 async function saveStudent() {
@@ -1398,6 +1418,7 @@ async function saveJournal() {
 
   const{error}=await sb.from('journal_entries').upsert(rows,{onConflict:'group_id,student_id,lesson_date'});
   if(error){notify('Xato: '+error.message,'err');return;}
+  await awardJournalCoins(rows, gid);
   notify('Jurnal saqlandi! ✅');
 }
 
@@ -1609,10 +1630,14 @@ function renderCategories() {
 async function saveCategory() {
   const name=document.getElementById('catName').value.trim();
   const max=parseInt(document.getElementById('catMax').value)||10;
+  const multiplier=parseFloat(document.getElementById('catMultiplier').value)||1;
   const gid=document.getElementById('catGroup').value;
   if(!name){notify('Nom kerak','err');return;}
-  await sb.from('grade_categories').insert({teacher_id:currentUser.id,group_id:gid||null,name,max_score:max});
-  closeM('addCategory');notify('Kategoriya qo\'shildi!');await loadAll();
+  await sb.from('grade_categories').insert({
+    teacher_id:currentUser.id, group_id:gid||null,
+    name, max_score:max, coin_multiplier:multiplier
+  });
+  closeM('addCategory');notify('Kategoriya qo\'shildi! 🪙');await loadAll();
 }
 
 async function deleteCategory(id) {
@@ -1737,6 +1762,7 @@ async function saveJournal() {
 
   const { error } = await sb.from('journal_entries').upsert(rows, { onConflict:'group_id,student_id,lesson_date' });
   if (error) { notify('Saqlashda xato: ' + error.message, 'err'); return; }
+  await awardJournalCoins(rows, gid);
   notify('Jurnal saqlandi! ✅');
 }
 
@@ -2210,11 +2236,16 @@ function addQuestion(type='multiple', initVals=null) {
         ? `<textarea class="inp" id="qsample-${id}" placeholder="Namuna javob (ixtiyoriy)..." style="min-height:60px;font-size:12px"></textarea>`
         : buildMultipleOpts(id, initVals?.vals||['','','',''], initVals?.correct||0)}
     </div>
-    ${type==='multiple'?`<div style="display:flex;gap:6px;margin-top:6px">
-      <button class="btn btn-secondary btn-xs" onclick="addVariant('${id}')" style="font-size:11px">+ Variant</button>
-      <button class="btn btn-secondary btn-xs" onclick="removeVariant('${id}')" style="font-size:11px">− Variant</button>
-    </div>`:''}
-    <div id="qvarbtns-${id}" style="display:${type==='multiple'?'flex':'none'};gap:6px;margin-top:6px">
+    <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      ${type==='multiple'?`
+        <button class="btn btn-secondary btn-xs" onclick="addVariant('${id}')" style="font-size:11px">+ Variant</button>
+        <button class="btn btn-secondary btn-xs" onclick="removeVariant('${id}')" style="font-size:11px">− Variant</button>`:''}
+      <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap">
+        <span style="color:#fcd34d">🪙</span>
+        <input class="inp" id="qcoin-${id}" type="number" value="${initVals?.coin||(type==='multiple'?5:10)}" min="0" step="1"
+          style="width:55px;margin:0;padding:4px 7px;font-size:12px;text-align:center">
+        <span style="color:var(--muted);font-size:11px">coin (to'g'ri javob uchun)</span>
+      </label>
     </div>
   `;
   if (type==='written' && initVals?.text) {
@@ -2364,6 +2395,7 @@ async function saveTest() {
         correct_index:qtype==='multiple'?getCorrect(bid):null,
         sample_answer:qtype==='written'?document.getElementById('qsample-'+bid)?.value||null:null,
         max_score:parseInt(document.getElementById('qscore-'+bid)?.value)||1,
+        coin_value:parseInt(document.getElementById('qcoin-'+bid)?.value)||5,
         order_num:i
       };
     });
@@ -2684,6 +2716,222 @@ async function showStudentJournalScore(stuId, stuName) {
     </div>
   </div>`;
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  document.body.appendChild(modal);
+}
+
+// ============================================================
+// 🪙 COIN SYSTEM
+// ============================================================
+
+// Award coins from journal save
+async function awardJournalCoins(rows, groupId) {
+  try {
+    const cats = myCategories.filter(c => !c.group_id || c.group_id === groupId);
+    if (!cats.length) return;
+
+    const coinRows = [];
+    for (const row of rows) {
+      if (!row.student_id || !row.grades) continue;
+      let totalCoin = 0;
+      cats.forEach(c => {
+        const ball = (row.grades)[c.id];
+        if (ball !== undefined && ball !== '') {
+          const mult = c.coin_multiplier || 1;
+          totalCoin += Math.round((parseFloat(ball) || 0) * mult);
+        }
+      });
+      if (totalCoin > 0) {
+        coinRows.push({
+          student_id: row.student_id,
+          source: 'journal',
+          source_id: row.lesson_date + '_' + groupId,
+          amount: totalCoin,
+          description: 'Dars: ' + row.lesson_date,
+          awarded_at: new Date().toISOString()
+        });
+      }
+    }
+    if (coinRows.length) {
+      // Upsert by student + source_id to avoid duplicates
+      await sb.from('student_coins').upsert(coinRows,
+        { onConflict: 'student_id,source_id', ignoreDuplicates: false });
+    }
+  } catch(e) { console.warn('awardJournalCoins error:', e); }
+}
+
+// Award coins from test result
+async function awardTestCoins(testId, studentId, score, total, percent) {
+  try {
+    const qs = await sb.from('questions').select('id,coin_value,correct_index,question_type')
+      .eq('test_id', testId);
+    const questions = qs.data || [];
+
+    // Base: sum coin_value of correctly answered questions
+    // percent-based: each question awards coin proportionally if written
+    let earnedCoin = 0;
+    questions.forEach(q => {
+      const cv = q.coin_value || 5;
+      if (q.question_type === 'multiple') {
+        // we don't have per-answer here — use percent approximation
+        earnedCoin += Math.round(cv * percent / 100);
+      } else {
+        earnedCoin += Math.round(cv * percent / 100);
+      }
+    });
+
+    // Bonus coins
+    let bonus = 0, bonusDesc = '';
+    if (percent === 100) { bonus += 20; bonusDesc += ' +20🎯 (100%)'; }
+    else if (percent >= 90) { bonus += 10; bonusDesc += ' +10⭐ (90%+)'; }
+
+    const totalCoin = earnedCoin + bonus;
+    if (totalCoin <= 0) return 0;
+
+    const sourceId = 'test_' + testId + '_' + studentId;
+    await sb.from('student_coins').upsert([{
+      student_id: studentId,
+      source: 'test',
+      source_id: sourceId,
+      amount: totalCoin,
+      description: 'Test natijasi: ' + percent + '%' + bonusDesc,
+      awarded_at: new Date().toISOString()
+    }], { onConflict: 'student_id,source_id', ignoreDuplicates: false });
+
+    return totalCoin;
+  } catch(e) { console.warn('awardTestCoins error:', e); return 0; }
+}
+
+// Get student total coins
+async function getStudentCoins(studentId) {
+  try {
+    const { data } = await sb.from('student_coins').select('amount')
+      .eq('student_id', studentId);
+    return (data || []).reduce((s, r) => s + (r.amount || 0), 0);
+  } catch(e) { return 0; }
+}
+
+// Coin leaderboard for ranking
+async function getCoinRanking(groupId, month) {
+  try {
+    let q = sb.from('student_coins').select('student_id, amount, awarded_at');
+    if (month) q = q.gte('awarded_at', month+'-01').lte('awarded_at', month+'-31T23:59:59');
+    const { data } = await q;
+    const map = {};
+    (data || []).forEach(r => {
+      if (!map[r.student_id]) map[r.student_id] = 0;
+      map[r.student_id] += r.amount || 0;
+    });
+    // Filter by group
+    if (groupId) {
+      const gStudents = myStudents.filter(s => s.groupIds?.includes(groupId)).map(s => s.id);
+      Object.keys(map).forEach(k => { if (!gStudents.includes(k)) delete map[k]; });
+    }
+    return map; // { student_id: totalCoins }
+  } catch(e) { return {}; }
+}
+
+// Render coin ranking (replaces renderRanking)
+async function renderRanking(){
+  const gf=document.getElementById('rankGroupSel')?.value||'';
+  const mf=document.getElementById('rankMonthSel')?.value||'';
+  const wrap=document.getElementById('rankingContent');
+  wrap.innerHTML='<div style="color:var(--muted);padding:20px">Yuklanmoqda...</div>';
+
+  const coinMap = await getCoinRanking(gf||null, mf||null);
+
+  // Build ranked list with student names
+  const ranked = Object.entries(coinMap)
+    .map(([sid, coins]) => {
+      const stu = myStudents.find(s => s.id === sid);
+      return { sid, coins, name: stu ? stu.last_name+' '+stu.first_name : 'O\'quvchi' };
+    })
+    .filter(r => r.coins > 0)
+    .sort((a, b) => b.coins - a.coins);
+
+  // Also get test results for display
+  const medals = ['🥇','🥈','🥉'];
+  const coinColor = (c) => c >= 500 ? '#fcd34d' : c >= 200 ? '#c4b5fd' : '#86efac';
+
+  wrap.innerHTML = `
+    <div style="font-size:12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px;padding:8px 12px;margin-bottom:12px;color:#fcd34d">
+      🪙 Reyting to'plangan coinlar bo'yicha hisoblanadi (jurnal + test natijalari)
+    </div>` +
+    (ranked.length
+      ? `<div class="card"><div class="tbl-wrap"><table>
+          <thead><tr>
+            <th>O'rin</th><th>O'quvchi</th>
+            <th style="text-align:center">🪙 Coin</th>
+            <th style="text-align:center">Daraja</th>
+          </tr></thead>
+          <tbody>${ranked.map((r,i)=>`<tr>
+            <td style="font-size:18px">${medals[i]||i+1+'.'}</td>
+            <td><strong>${r.name}</strong></td>
+            <td style="text-align:center">
+              <span style="font-weight:800;font-size:16px;color:${coinColor(r.coins)}">🪙 ${r.coins}</span>
+            </td>
+            <td style="text-align:center">
+              <span class="badge ${r.coins>=500?'badge-amber':r.coins>=200?'badge-purple':'badge-green'}">
+                ${r.coins>=500?'💎 Pro':r.coins>=200?'⭐ Yaxshi':'🌱 Yangi'}
+              </span>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table></div></div>`
+      : '<div style="color:var(--muted)">Hali coin to\'planmagan</div>');
+}
+
+// Show student coin history popup
+async function showStudentCoins(stuId, stuName) {
+  const { data } = await sb.from('student_coins').select('*')
+    .eq('student_id', stuId).order('awarded_at', {ascending:false}).limit(50);
+  const total = (data||[]).reduce((s,r)=>s+r.amount,0);
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.style.zIndex = '300';
+  modal.innerHTML = `<div class="modal" style="max-width:480px">
+    <div class="modal-title">🪙 ${stuName} — Coin tarixi</div>
+    <div style="display:flex;gap:16px;background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:14px;text-align:center">
+      <div style="flex:1">
+        <div style="font-size:32px;font-weight:900;color:#fcd34d">🪙 ${total}</div>
+        <div style="font-size:11px;color:var(--muted)">Jami coin</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:24px;font-weight:800;color:#c4b5fd">${(data||[]).filter(r=>r.source==='test').reduce((s,r)=>s+r.amount,0)}</div>
+        <div style="font-size:11px;color:var(--muted)">Test coinlari</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:24px;font-weight:800;color:#86efac">${(data||[]).filter(r=>r.source==='journal').reduce((s,r)=>s+r.amount,0)}</div>
+        <div style="font-size:11px;color:var(--muted)">Dars coinlari</div>
+      </div>
+    </div>
+    <div style="max-height:320px;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--bg3)">
+          <th style="padding:7px 10px;text-align:left">Manba</th>
+          <th style="padding:7px 10px;text-align:left">Izoh</th>
+          <th style="padding:7px 10px;text-align:center">🪙</th>
+          <th style="padding:7px 10px;text-align:right">Sana</th>
+        </tr></thead>
+        <tbody>${(data||[]).length
+          ? (data||[]).map(r=>`<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+              <td style="padding:7px 10px">
+                <span class="badge ${r.source==='test'?'badge-blue':'badge-green'}">${r.source==='test'?'📝 Test':'📋 Dars'}</span>
+              </td>
+              <td style="padding:7px 10px;color:var(--muted)">${r.description||'—'}</td>
+              <td style="padding:7px 10px;text-align:center;font-weight:700;color:#fcd34d">+${r.amount}</td>
+              <td style="padding:7px 10px;text-align:right;color:var(--hint);font-size:11px">
+                ${new Date(r.awarded_at).toLocaleDateString('uz-UZ',{day:'numeric',month:'short'})}
+              </td>
+            </tr>`).join('')
+          : '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--muted)">Hali coin yo\'q</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <div style="text-align:right;margin-top:14px">
+      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Yopish</button>
+    </div>
+  </div>`;
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   document.body.appendChild(modal);
 }
 
