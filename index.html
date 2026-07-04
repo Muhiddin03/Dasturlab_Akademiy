@@ -620,10 +620,33 @@ async function submitTest() {
       .ilike('first_name', state.studentName.split(' ').slice(1).join(' '));
     const stuId = stuData?.[0]?.id || null;
 
-    await sb.from('results').insert({
+    const { data: insertedResult } = await sb.from('quiz_results').insert({
       test_id: currentTest.id, student_id: stuId, student_name: state.studentName,
       score, total, percent, time_taken: timeTaken, answers, month
-    });
+    }).select().single();
+
+    // Award coins
+    if (stuId) {
+      try {
+        const { data: qs } = await sb.from('questions')
+          .select('id,coin_value,question_type').eq('test_id', currentTest.id);
+        let earnedCoin = Math.round((qs||[]).reduce((s,q)=>s+(q.coin_value||5),0) * percent / 100);
+        let bonusDesc = '';
+        if (percent===100){earnedCoin+=20;bonusDesc=' +20🎯';}
+        else if(percent>=90){earnedCoin+=10;bonusDesc=' +10⭐';}
+        if (earnedCoin>0) {
+          await sb.from('student_coins').upsert([{
+            student_id: stuId,
+            source: 'test',
+            source_id: 'test_'+currentTest.id+'_'+stuId,
+            amount: earnedCoin,
+            description: 'Test: '+percent+'%'+bonusDesc,
+            awarded_at: new Date().toISOString()
+          }], { onConflict:'student_id,source_id', ignoreDuplicates:false });
+          state.earnedCoins = earnedCoin;
+        }
+      } catch(e) { console.warn('coin award err:', e); }
+    }
 
     if (!hasWritten) {
       showResult(score, total, percent, timeTaken, multipleQs);
@@ -686,9 +709,16 @@ function showResult(score, total, percent, timeTaken, questions) {
       </div>`;
   }
 
+  const coinBadge = state.earnedCoins
+    ? `<div style="background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.3);border-radius:12px;padding:10px 20px;display:inline-block;margin:10px 0">
+        <span style="font-size:22px;font-weight:900;color:#fcd34d">🪙 +${state.earnedCoins} coin</span>
+        <div style="font-size:11px;color:#fcd34d;opacity:.7;margin-top:2px">Hisobingizga qo'shildi!</div>
+      </div>` : '';
+
   document.getElementById('resultContent').innerHTML = `
     <div style="font-size:64px;font-weight:900;color:${gradeColor}">${percent}%</div>
     <div style="font-size:18px;margin:8px 0;color:${gradeColor}">${grade}</div>
+    ${coinBadge}
     <div class="result-stats">
       <div class="result-stat"><div class="result-stat-val">${score}/${total}</div><div class="result-stat-lbl">Ball</div></div>
       <div class="result-stat"><div class="result-stat-val">${timeTaken}</div><div class="result-stat-lbl">Daqiqa</div></div>
@@ -723,7 +753,7 @@ document.querySelectorAll('.overlay').forEach(ov => {
 });
 
 function notify(msg, type='success') {
-  const wrap = document.getElementById('notifWrap'); 
+  const wrap = document.getElementById('notifWrap');
   const el = document.createElement('div');
   el.className = 'notif' + (type==='err'?' err':'');
   el.innerHTML = `<span>${type==='success'?'✅':'❌'}</span> ${msg}`;
