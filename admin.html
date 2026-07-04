@@ -199,6 +199,10 @@ textarea.inp{resize:vertical;min-height:80px}
         <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Natijalar
       </div>
+      <div class="nav-item" onclick="nav('coins');loadCoinRanking()">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v2m0 8v2M8.5 8.5l1.5 1.5m4 4l1.5 1.5M6 12h2m8 0h2M8.5 15.5l1.5-1.5m4-4l1.5-1.5"/></svg>
+        🪙 Coinlar
+      </div>
       <div class="nav-section">Hisobotlar</div>
       <div class="nav-item" onclick="nav('reports')">
         <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -277,7 +281,7 @@ textarea.inp{resize:vertical;min-height:80px}
         <div class="card">
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th>#</th><th>Ism Familiya</th><th>Telefon</th><th>Guruhlar</th><th>Natijalar</th><th>Amallar</th></tr></thead>
+              <thead><tr><th>#</th><th>Ism Familiya</th><th>Telefon</th><th>Guruhlar</th><th>Natijalar</th><th style="text-align:center">🪙 Coin</th><th>Amallar</th></tr></thead>
               <tbody id="studentsTbody"></tbody>
             </table>
           </div>
@@ -378,6 +382,25 @@ textarea.inp{resize:vertical;min-height:80px}
         <div class="card" style="margin-top:16px">
           <div class="card-title">Barcha o'qituvchilar boshqaruvi</div>
           <div id="teacherMgmtList"></div>
+        </div>
+      </div>
+
+      <!-- COINS PAGE -->
+      <div class="page" id="page-coins">
+        <div class="page-header">
+          <div class="page-title">🪙 Coin reytingi</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="coinMonthFilter" class="inp" style="width:auto" onchange="loadCoinRanking()">
+              <option value="">Barcha vaqt</option>
+            </select>
+            <select id="coinGroupFilter" class="inp" style="width:auto" onchange="loadCoinRanking()">
+              <option value="">Barcha guruhlar</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px" id="coinStats"></div>
+        <div class="card" id="coinRankingWrap">
+          <div style="color:var(--muted);padding:20px">Yuklanmoqda...</div>
         </div>
       </div>
 
@@ -724,52 +747,41 @@ function renderLeaderboardMonths() {
 
 async function renderLeaderboard() {
   const month = document.getElementById('lbMonthSel')?.value || currentMonth();
-  const map   = {};
-  // Test natijalari
-  allResults.filter(r => r.month === month).forEach(r => {
-    if (!map[r.student_id]) map[r.student_id] = { name: r.student_name, testScores:[], journalTotal:0, journalMax:0 };
-    map[r.student_id].testScores.push(r.percent);
-  });
-  // Jurnal ballari (bu oy)
+  const wrap  = document.getElementById('leaderboard');
+  wrap.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">Yuklanmoqda...</div>';
+
+  // Coin based ranking
   try {
-    const gids = allGroups.map(g => g.id);
-    if (gids.length) {
-      const from = month + '-01', to = month + '-31';
-      const { data: jEntries } = await sb.from('journal_entries').select('*')
-        .in('group_id', gids).gte('lesson_date', from).lte('lesson_date', to);
-      const { data: cats } = await sb.from('grade_categories').select('*');
-      (jEntries||[]).forEach(e => {
-        const sid = e.student_id;
-        const stu = allStudents.find(s => s.id === sid);
-        if (!stu) return;
-        if (!map[sid]) map[sid] = { name: stu.last_name+' '+stu.first_name, testScores:[], journalTotal:0, journalMax:0 };
-        (cats||[]).filter(c => c.group_id === e.group_id || !c.group_id).forEach(c => {
-          const v = (e.grades||{})[c.id];
-          if (v !== undefined && v !== '') { map[sid].journalTotal += parseFloat(v)||0; map[sid].journalMax += c.max_score; }
-        });
-      });
-    }
-  } catch(err) {}
+    let q = sb.from('student_coins').select('student_id, amount, awarded_at');
+    if (month) q = q.gte('awarded_at', month+'-01').lte('awarded_at', month+'-31T23:59:59');
+    const { data: coins } = await q;
 
-  const medals = ['🥇','🥈','🥉','4.','5.'];
-  const ranked = Object.values(map).map(s => {
-    const testAvg = s.testScores.length ? Math.round(s.testScores.reduce((a,b)=>a+b,0)/s.testScores.length) : null;
-    const jPct    = s.journalMax > 0 ? Math.round(s.journalTotal / s.journalMax * 100) : null;
-    let combined;
-    if (testAvg !== null && jPct !== null) combined = Math.round(testAvg * 0.6 + jPct * 0.4);
-    else if (testAvg !== null) combined = testAvg;
-    else combined = jPct || 0;
-    return { ...s, combined };
-  }).sort((a,b) => b.combined - a.combined).slice(0, 5);
+    const map = {};
+    (coins||[]).forEach(r => {
+      const stu = allStudents.find(s => s.id === r.student_id);
+      if (!stu) return;
+      if (!map[r.student_id]) map[r.student_id] = {
+        name: stu.last_name+' '+stu.first_name,
+        coins: 0, sid: r.student_id
+      };
+      map[r.student_id].coins += r.amount||0;
+    });
 
-  document.getElementById('leaderboard').innerHTML = ranked.length
-    ? ranked.map((r,i) => `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:18px;width:28px">${medals[i]}</span>
-        <span style="flex:1;font-size:13px">${r.name}</span>
-        <span style="font-weight:700;color:var(--purple)">${r.combined}%</span>
-      </div>`).join('')
-    : '<div style="color:var(--muted);font-size:13px">Bu oyda natijalar yo\'q</div>';
+    const medals = ['🥇','🥈','🥉','4.','5.'];
+    const coinColor = c => c>=500?'#fcd34d':c>=200?'#c4b5fd':'#86efac';
+    const ranked = Object.values(map).sort((a,b)=>b.coins-a.coins).slice(0,5);
+
+    wrap.innerHTML = ranked.length
+      ? ranked.map((r,i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:18px;width:26px">${medals[i]}</span>
+          <span style="flex:1;font-size:13px;font-weight:600">${r.name}</span>
+          <span style="font-weight:800;color:${coinColor(r.coins)}">🪙 ${r.coins}</span>
+        </div>`).join('')
+      : '<div style="color:var(--muted);font-size:13px">Bu oyda coin yo\'q</div>';
+  } catch(e) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:12px">Yuklab bo\'lmadi</div>';
+  }
 }
 
 function renderGroupRanking() {
@@ -1179,12 +1191,27 @@ function renderStudents() {
       <td style="color:var(--muted)">${s.phone||'—'}</td>
       <td>${groups.join(', ')||'—'}</td>
       <td>${resCount ? `<span style="font-weight:700;color:var(--purple)">${avg}%</span> <span style="color:var(--muted);font-size:12px">(${resCount} test)</span>` : '—'}</td>
+      <td style="text-align:center">
+        <span id="admcoin-${s.id}" style="font-weight:700;color:#fcd34d;cursor:pointer"
+          onclick="showAdminCoinHistory('${s.id}','${s.last_name} ${s.first_name}')">...</span>
+      </td>
       <td style="display:flex;gap:4px">
         <button class="btn btn-secondary btn-xs" onclick="openEditStudent('${s.id}')">✏️ Tahrir</button>
         <button class="btn btn-danger btn-xs" onclick="deleteStudent('${s.id}')">O'chirish</button>
       </td>
     </tr>`;
-  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">O\'quvchilar topilmadi</td></tr>';
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">O\'quvchilar topilmadi</td></tr>';
+
+  // Load coins async
+  list.forEach(async s => {
+    const el = document.getElementById('admcoin-'+s.id);
+    if (!el) return;
+    try {
+      const { data } = await sb.from('student_coins').select('amount').eq('student_id', s.id);
+      const total = (data||[]).reduce((sum,r)=>sum+r.amount,0);
+      el.textContent = '🪙 '+total;
+    } catch(e) { el.textContent = '—'; }
+  });
 }
 
 async function saveStudent() {
@@ -1201,6 +1228,174 @@ async function saveStudent() {
     await sb.from('student_groups').insert([...checks].map(c => ({ student_id:data.id, group_id:c.value })));
   }
   closeM('addStudent'); notify('O\'quvchi qo\'shildi!'); await loadAll();
+}
+
+async function showAdminCoinHistory(stuId, stuName) {
+  const { data } = await sb.from('student_coins').select('*')
+    .eq('student_id', stuId).order('awarded_at', {ascending:false});
+  const total = (data||[]).reduce((s,r)=>s+r.amount,0);
+  const testC = (data||[]).filter(r=>r.source==='test').reduce((s,r)=>s+r.amount,0);
+  const jrnC  = (data||[]).filter(r=>r.source==='journal').reduce((s,r)=>s+r.amount,0);
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  modal.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:500px;margin:auto">
+    <div style="font-size:18px;font-weight:800;margin-bottom:16px">🪙 ${stuName} — Coin tarixi</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:26px;font-weight:900;color:#fcd34d">🪙 ${total}</div>
+        <div style="font-size:11px;color:var(--muted)">Jami</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:#93c5fd">${testC}</div>
+        <div style="font-size:11px;color:var(--muted)">📝 Test</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:#86efac">${jrnC}</div>
+        <div style="font-size:11px;color:var(--muted)">📋 Dars</div>
+      </div>
+    </div>
+    <div style="max-height:340px;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--bg3)">
+          <th style="padding:8px 10px;text-align:left">Manba</th>
+          <th style="padding:8px 10px;text-align:left">Izoh</th>
+          <th style="padding:8px 10px;text-align:center">🪙</th>
+          <th style="padding:8px 10px;text-align:right">Sana</th>
+        </tr></thead>
+        <tbody>
+          ${(data||[]).length ? (data||[]).map(r=>`
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+              <td style="padding:7px 10px">
+                <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${r.source==='test'?'rgba(147,197,253,.15)':'rgba(134,239,172,.15)'};color:${r.source==='test'?'#93c5fd':'#86efac'}">
+                  ${r.source==='test'?'📝 Test':'📋 Dars'}
+                </span>
+              </td>
+              <td style="padding:7px 10px;color:var(--muted);font-size:11px">${r.description||'—'}</td>
+              <td style="padding:7px 10px;text-align:center;font-weight:700;color:#fcd34d">+${r.amount}</td>
+              <td style="padding:7px 10px;text-align:right;color:var(--hint);font-size:11px">
+                ${new Date(r.awarded_at).toLocaleDateString('uz-UZ',{day:'numeric',month:'short',year:'2-digit'})}
+              </td>
+            </tr>`).join('')
+          : '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--muted)">Hali coin yo\'q</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <div style="text-align:right;margin-top:14px">
+      <button style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 18px;cursor:pointer" onclick="this.closest('.modal-overlay').remove()">Yopish</button>
+    </div>
+  </div>`;
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function loadCoinRanking() {
+  const month  = document.getElementById('coinMonthFilter')?.value||'';
+  const groupId= document.getElementById('coinGroupFilter')?.value||'';
+  const wrap   = document.getElementById('coinRankingWrap');
+  const stats  = document.getElementById('coinStats');
+  if(!wrap) return;
+  wrap.innerHTML = '<div style="color:var(--muted);padding:20px">Yuklanmoqda...</div>';
+
+  try {
+    // Fill month filter
+    const mSel = document.getElementById('coinMonthFilter');
+    if (mSel && mSel.options.length <= 1) {
+      const months = [...new Set(allResults.map(r=>r.month||(r.taken_at?r.taken_at.slice(0,7):'')).filter(Boolean))].sort().reverse();
+      months.forEach(m => { const o=document.createElement('option');o.value=m;o.textContent=monthLabel(m);mSel.appendChild(o); });
+    }
+    // Fill group filter
+    const gSel = document.getElementById('coinGroupFilter');
+    if (gSel && gSel.options.length <= 1) {
+      allGroups.forEach(g => { const o=document.createElement('option');o.value=g.id;o.textContent=g.name;gSel.appendChild(o); });
+    }
+
+    let q = sb.from('student_coins').select('student_id, amount, source, awarded_at, description');
+    if (month) q = q.gte('awarded_at', month+'-01').lte('awarded_at', month+'-31T23:59:59');
+    const { data: allCoins } = await q;
+
+    // Filter by group
+    let stuIds = allStudents.map(s=>s.id);
+    if (groupId) stuIds = allStudents.filter(s=>s.groupIds?.includes(groupId)).map(s=>s.id);
+
+    const coinData = (allCoins||[]).filter(r=>stuIds.includes(r.student_id));
+
+    // Stats
+    const totalCoins = coinData.reduce((s,r)=>s+r.amount,0);
+    const testCoins  = coinData.filter(r=>r.source==='test').reduce((s,r)=>s+r.amount,0);
+    const jrnCoins   = coinData.filter(r=>r.source==='journal').reduce((s,r)=>s+r.amount,0);
+    if(stats) stats.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#fcd34d">🪙 ${totalCoins}</div>
+        <div style="font-size:12px;color:var(--muted)">Jami berilgan coin</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#93c5fd">${testCoins}</div>
+        <div style="font-size:12px;color:var(--muted)">📝 Testdan</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#86efac">${jrnCoins}</div>
+        <div style="font-size:12px;color:var(--muted)">📋 Darsdan</div>
+      </div>`;
+
+    // Per student ranking
+    const map = {};
+    coinData.forEach(r => {
+      const stu = allStudents.find(s=>s.id===r.student_id);
+      if(!stu) return;
+      if(!map[r.student_id]) map[r.student_id]={
+        name:stu.last_name+' '+stu.first_name, sid:r.student_id,
+        total:0, test:0, journal:0,
+        groups:(stu.groupIds||[]).map(gid=>allGroups.find(g=>g.id===gid)?.name).filter(Boolean)
+      };
+      map[r.student_id].total += r.amount;
+      if(r.source==='test') map[r.student_id].test += r.amount;
+      if(r.source==='journal') map[r.student_id].journal += r.amount;
+    });
+
+    const ranked = Object.values(map).sort((a,b)=>b.total-a.total);
+    const medals = ['🥇','🥈','🥉'];
+    const coinColor = c => c>=500?'#fcd34d':c>=200?'#c4b5fd':c>=50?'#86efac':'var(--muted)';
+
+    wrap.innerHTML = ranked.length ? `
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:var(--bg3)">
+            <th style="padding:10px 12px;text-align:left;width:40px">#</th>
+            <th style="padding:10px 12px;text-align:left">O'quvchi</th>
+            <th style="padding:10px 12px;text-align:left">Guruh</th>
+            <th style="padding:10px 12px;text-align:center">📝 Test</th>
+            <th style="padding:10px 12px;text-align:center">📋 Dars</th>
+            <th style="padding:10px 12px;text-align:center">🪙 Jami</th>
+            <th style="padding:10px 12px;text-align:center">Daraja</th>
+          </tr></thead>
+          <tbody>
+            ${ranked.map((r,i)=>`
+              <tr style="border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" onclick="showAdminCoinHistory('${r.sid}','${r.name}')">
+                <td style="padding:10px 12px;font-size:16px">${medals[i]||i+1+'.'}</td>
+                <td style="padding:10px 12px"><strong>${r.name}</strong></td>
+                <td style="padding:10px 12px;color:var(--muted);font-size:12px">${r.groups.join(', ')||'—'}</td>
+                <td style="padding:10px 12px;text-align:center;color:#93c5fd;font-weight:700">${r.test}</td>
+                <td style="padding:10px 12px;text-align:center;color:#86efac;font-weight:700">${r.journal}</td>
+                <td style="padding:10px 12px;text-align:center">
+                  <span style="font-weight:900;font-size:16px;color:${coinColor(r.total)}">🪙 ${r.total}</span>
+                </td>
+                <td style="padding:10px 12px;text-align:center">
+                  <span style="font-size:11px;padding:3px 10px;border-radius:10px;
+                    background:${r.total>=500?'rgba(234,179,8,.15)':r.total>=200?'rgba(124,111,247,.15)':'rgba(134,239,172,.15)'};
+                    color:${r.total>=500?'#fcd34d':r.total>=200?'#c4b5fd':'#86efac'}">
+                    ${r.total>=500?'💎 Pro':r.total>=200?'⭐ Yaxshi':'🌱 Yangi'}
+                  </span>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : '<div style="color:var(--muted);padding:30px;text-align:center">Hali coin to\'planmagan</div>';
+  } catch(e) {
+    if(wrap) wrap.innerHTML = '<div style="color:var(--red);padding:20px">Xato: '+e.message+'</div>';
+    console.error(e);
+  }
 }
 
 async function deleteStudent(id) {
