@@ -464,7 +464,16 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="form-row"><label class="form-label">Ism</label><input class="inp" id="editSFirst" placeholder="Ism"></div>
       <div class="form-row"><label class="form-label">Familiya</label><input class="inp" id="editSLast" placeholder="Familiya"></div>
     </div>
-    <div class="form-row"><label class="form-label">Telefon</label><input class="inp" id="editSPhone" placeholder="+998 90..."></div>
+    <div class="form-row"><label class="form-label">Telefon (login)</label><input class="inp" id="editSPhone" placeholder="+998 90..."></div>
+    <div style="background:rgba(124,111,247,.08);border:1px solid rgba(124,111,247,.2);border-radius:8px;padding:10px 12px;margin:8px 0;font-size:12px;color:var(--muted)">
+      🔐 Quyidagi parol o'quvchi <strong>student.html</strong> da kirish uchun ishlatadi
+    </div>
+    <div class="form-row"><label class="form-label">Parol (kirish uchun)</label>
+      <div style="display:flex;gap:8px">
+        <input class="inp" id="editSPass" placeholder="Parolni o'rnating..." style="flex:1">
+        <button class="btn btn-secondary btn-sm" onclick="genPass()">🎲 Yaratish</button>
+      </div>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeM('editStudent')">Bekor</button>
       <button class="btn btn-primary" onclick="saveEditStudent()">💾 Saqlash</button>
@@ -972,7 +981,7 @@ async function loadAll() {
 function renderAll() {
   renderStats();
   renderMyGroupsList();
-  renderDashLeaderboard();
+  renderDashLeaderboard().catch(e=>console.warn('dash lb err:',e));
   renderDashRecentResults();
   renderMyStudents();
   renderCategories();
@@ -1156,9 +1165,9 @@ function renderMyStudents() {
           ${s.last_name[0]||'?'}
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14px;color:var(--text);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-            onclick="showStudentJournalScore('${s.id}','${s.last_name} ${s.first_name}')"
-            title="${s.last_name} ${s.first_name}">${s.last_name} ${s.first_name}</div>
+          <div style="font-weight:700;font-size:14px;color:var(--purple);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+            onclick="openStudentProfile('${s.id}')"
+            title="Profilni ko'rish — ${s.last_name} ${s.first_name}">${s.last_name} ${s.first_name} ↗</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">${s.phone||'Telefon yo\'q'}</div>
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0">
@@ -1234,6 +1243,17 @@ async function removeStudentFromGroup(stuId) {
   notify("O\'quvchi guruhdan chiqarildi");await loadAll();
 }
 
+function openStudentProfile(stuId) {
+  window.open('student.html?view='+stuId, '_blank');
+}
+
+function genPass() {
+  const chars='abcdefghjkmnpqrstuvwxyz23456789';
+  let p='';
+  for(let i=0;i<8;i++) p+=chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('editSPass').value=p;
+}
+
 function openEditStudent(stuId) {
   const s = myStudents.find(x=>x.id===stuId);
   if(!s) return;
@@ -1241,6 +1261,7 @@ function openEditStudent(stuId) {
   document.getElementById('editSFirst').value = s.first_name||'';
   document.getElementById('editSLast').value = s.last_name||'';
   document.getElementById('editSPhone').value = s.phone||'';
+  document.getElementById('editSPass').value = s.password||'';
   openM('editStudent');
 }
 
@@ -1249,9 +1270,13 @@ async function saveEditStudent() {
   const first = document.getElementById('editSFirst').value.trim();
   const last  = document.getElementById('editSLast').value.trim();
   const phone = document.getElementById('editSPhone').value.trim();
+  const pass  = document.getElementById('editSPass')?.value.trim()||'';
   if(!first||!last){notify('Ism va familiya kerak','err');return;}
-  const{error}=await sb.from('students').update({first_name:first,last_name:last,phone}).eq('id',id);
+  const updates={first_name:first,last_name:last,phone};
+  if(pass){updates.password=pass;updates.login=phone||pass;}
+  const{error}=await sb.from('students').update(updates).eq('id',id);
   if(error){notify('Xato: '+error.message,'err');return;}
+  if(pass) notify('Parol saqlandi: '+pass+' (eslab qoling!)');
   closeM('editStudent');notify("O\'quvchi ma\'lumotlari yangilandi ✅");await loadAll();
 }
 
@@ -2498,6 +2523,35 @@ async function submitChecked(){
     scores,total_score:total,max_score:maxTotal,
     status:'checked',teacher_comment:comment,checked_at:new Date().toISOString()
   }).eq('id',checkingAnswerId);
+
+  // Award coins for written answers
+  if(wa.student_id && maxTotal>0){
+    try{
+      const pct=Math.round(total/maxTotal*100);
+      // Coin per question based on coin_value
+      let earnedCoin=0;
+      questions.forEach(q=>{
+        const cv=q.coin_value||10;
+        const qScore=scores[q.id]||0;
+        earnedCoin+=Math.round(cv*(qScore/(q.max_score||1)));
+      });
+      let bonusDesc='';
+      if(pct===100){earnedCoin+=20;bonusDesc=' +20🎯';}
+      else if(pct>=90){earnedCoin+=10;bonusDesc=' +10⭐';}
+      if(earnedCoin>0){
+        const test=myTests.find(t=>t.id===wa.test_id);
+        await sb.from('student_coins').upsert([{
+          student_id:wa.student_id,
+          source:'test',
+          source_id:'written_'+wa.id,
+          amount:earnedCoin,
+          description:'Yozma test: '+(test?.name||'')+'  '+pct+'%'+bonusDesc,
+          awarded_at:new Date().toISOString()
+        }],{onConflict:'student_id,source_id',ignoreDuplicates:false});
+        notify('Coin berildi: +'+earnedCoin+' 🪙');
+      }
+    }catch(e){console.warn('coin err:',e);}
+  }
   closeM('checkWritten');notify('Tekshirildi va saqlandi! ✅');await loadAll();
 }
 
