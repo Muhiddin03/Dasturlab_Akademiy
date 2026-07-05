@@ -228,12 +228,20 @@ async function doStudentLogin() {
 
   try {
     // Find student by phone or email + password
-    // login = phone number
-    const { data, error } = await sb.from('students')
-      .select('*')
+    // 1. Find auth record by phone + password
+    const { data: authData } = await sb.from('student_auth')
+      .select('student_id')
       .eq('phone', login)
       .eq('password', pass)
       .maybeSingle();
+
+    let data = null;
+    if (authData?.student_id) {
+      const { data: stuData } = await sb.from('students')
+        .select('*').eq('id', authData.student_id).maybeSingle();
+      data = stuData;
+    }
+    const error = null;
 
     if (error || !data) {
       showErr('Login yoki parol noto\'g\'ri');
