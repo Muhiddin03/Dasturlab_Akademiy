@@ -233,44 +233,44 @@ async function doStudentLogin() {
   const reset = () => { btn.disabled=false; btn.innerHTML='Kirish →'; };
 
   try {
-    // Debug: log what we're searching
-    console.log('Login attempt:', login, pass);
+    // Step 1: find student by phone
+    const cleanLogin = login.replace(/\s/g,'').replace(/^\+/,'');
+    const { data: stuList } = await sb
+      .from('students').select('id,first_name,last_name,phone');
 
-    // Step 1: find in student_auth by phone + password
-    const { data: authRows, error: authErr } = await sb
-      .from('student_auth')
-      .select('student_id, phone, password')
-      .eq('password', pass);
-
-    console.log('Auth rows:', authRows, authErr);
-
-    // Match phone flexibly (with/without +, spaces)
-    const cleanLogin = login.replace(/\s/g,'');
-    const authRow = (authRows||[]).find(r => {
-      const cleanPhone = (r.phone||'').replace(/\s/g,'');
-      return cleanPhone === cleanLogin ||
-             cleanPhone === '+'+cleanLogin ||
-             '+'+cleanPhone === cleanLogin;
+    const matched = (stuList||[]).find(s => {
+      const p = (s.phone||'').replace(/\s/g,'').replace(/^\+/,'');
+      return p === cleanLogin;
     });
 
-    console.log('Matched auth row:', authRow);
-
-    if (!authRow) {
-      showErr('Login yoki parol noto\'g\'ri');
+    if (!matched) {
+      showErr('Bu telefon raqam topilmadi. O\'qituvchingizdan so\'rang.');
       reset(); return;
     }
 
-    // Step 2: get student info
-    const { data: stu, error: stuErr } = await sb
-      .from('students')
-      .select('*')
-      .eq('id', authRow.student_id)
+    // Step 2: check password in student_auth
+    const { data: authRow } = await sb
+      .from('student_auth')
+      .select('password')
+      .eq('student_id', matched.id)
       .maybeSingle();
 
-    console.log('Student:', stu, stuErr);
+    if (!authRow) {
+      showErr('Parol o\'rnatilmagan. O\'qituvchingizdan so\'rang.');
+      reset(); return;
+    }
+
+    if (authRow.password !== pass) {
+      showErr('Parol noto\'g\'ri.');
+      reset(); return;
+    }
+
+    // Step 3: get full student info
+    const { data: stu } = await sb
+      .from('students').select('*').eq('id', matched.id).maybeSingle();
 
     if (!stu) {
-      showErr('O\'quvchi topilmadi. O\'qituvchingizga murojaat qiling.');
+      showErr('O\'quvchi topilmadi.');
       reset(); return;
     }
 
