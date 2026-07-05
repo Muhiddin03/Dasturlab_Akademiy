@@ -228,11 +228,12 @@ async function doStudentLogin() {
 
   try {
     // Find student by phone or email + password
+    // login = phone number
     const { data, error } = await sb.from('students')
       .select('*')
-      .or(`phone.eq.${login},login.eq.${login},email.eq.${login}`)
+      .eq('phone', login)
       .eq('password', pass)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       showErr('Login yoki parol noto\'g\'ri');
@@ -241,8 +242,8 @@ async function doStudentLogin() {
       return;
     }
 
-    currentStudent = data;
-    localStorage.setItem('student_session', JSON.stringify(data));
+    currentStudent = data_final || data;
+    localStorage.setItem('student_session', JSON.stringify(data_final || data));
     await loadCabinet();
   } catch(e) {
     showErr('Xato yuz berdi: ' + e.message);
