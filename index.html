@@ -142,6 +142,7 @@ textarea.inp{resize:vertical;min-height:100px}
 <nav class="navbar">
   <div class="nav-logo">🎓 Dasturlab Akademi</div>
   <div style="display:flex;gap:8px;align-items:center">
+    <a href="student.html" class="btn btn-primary btn-sm">🎓 O'quvchi kirish</a>
     <a href="teacher.html" class="btn btn-secondary btn-sm">O'qituvchi</a>
     <a href="admin.html" class="btn btn-secondary btn-sm">Admin</a>
   </div>
@@ -433,7 +434,7 @@ async function startTest() {
   const fullName = last + ' ' + first;
 
   // Takror topshirgan-topshirmaganligini tekshirish
-  const { data: existing } = await sb.from('results')
+  const { data: existing } = await sb.from('quiz_results')
     .select('*').eq('test_id', currentTest.id)
     .ilike('student_name', fullName);
   const { data: existingW } = await sb.from('written_answers')
