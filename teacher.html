@@ -1254,14 +1254,19 @@ function genPass() {
   document.getElementById('editSPass').value=p;
 }
 
-function openEditStudent(stuId) {
+async function openEditStudent(stuId) {
   const s = myStudents.find(x=>x.id===stuId);
   if(!s) return;
   document.getElementById('editStuId').value = stuId;
   document.getElementById('editSFirst').value = s.first_name||'';
   document.getElementById('editSLast').value = s.last_name||'';
   document.getElementById('editSPhone').value = s.phone||'';
-  document.getElementById('editSPass').value = s.password||'';
+  document.getElementById('editSPass').value = '';
+  // Load existing password from student_auth
+  try {
+    const {data:auth} = await sb.from('student_auth').select('password').eq('student_id',stuId).maybeSingle();
+    if(auth?.password) document.getElementById('editSPass').value = auth.password;
+  } catch(e){}
   openM('editStudent');
 }
 
@@ -1273,10 +1278,18 @@ async function saveEditStudent() {
   const pass  = document.getElementById('editSPass')?.value.trim()||'';
   if(!first||!last){notify('Ism va familiya kerak','err');return;}
   const updates={first_name:first,last_name:last,phone};
-  if(pass){updates.password=pass;}
   const{error}=await sb.from('students').update(updates).eq('id',id);
   if(error){notify('Xato: '+error.message,'err');return;}
-  if(pass) notify('Parol saqlandi: '+pass+' (eslab qoling!)');
+
+  // Save password separately to student_auth table
+  if(pass){
+    await sb.from('student_auth').upsert([{
+      student_id:id,
+      phone:phone||id,
+      password:pass
+    }],{onConflict:'student_id'});
+    notify('Parol saqlandi: '+pass);
+  }
   closeM('editStudent');notify("O\'quvchi ma\'lumotlari yangilandi ✅");await loadAll();
 }
 
