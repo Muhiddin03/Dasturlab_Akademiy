@@ -1209,8 +1209,8 @@ function renderStudents() {
     try {
       const { data } = await sb.from('student_coins').select('amount').eq('student_id', s.id);
       const total = (data||[]).reduce((sum,r)=>sum+r.amount,0);
-      el.textContent = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> '+total;
-    } catch(e) { el.textContent = '—'; }
+      el.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> '+total;
+    } catch(e) { el.innerHTML = '—'; }
   });
 }
 
