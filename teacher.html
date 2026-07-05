@@ -1273,7 +1273,7 @@ async function saveEditStudent() {
   const pass  = document.getElementById('editSPass')?.value.trim()||'';
   if(!first||!last){notify('Ism va familiya kerak','err');return;}
   const updates={first_name:first,last_name:last,phone};
-  if(pass){updates.password=pass;updates.login=phone||pass;}
+  if(pass){updates.password=pass;}
   const{error}=await sb.from('students').update(updates).eq('id',id);
   if(error){notify('Xato: '+error.message,'err');return;}
   if(pass) notify('Parol saqlandi: '+pass+' (eslab qoling!)');
