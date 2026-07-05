@@ -201,7 +201,7 @@ textarea.inp{resize:vertical;min-height:80px}
       </div>
       <div class="nav-item" onclick="nav('coins');loadCoinRanking()">
         <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v2m0 8v2M8.5 8.5l1.5 1.5m4 4l1.5 1.5M6 12h2m8 0h2M8.5 15.5l1.5-1.5m4-4l1.5-1.5"/></svg>
-        🪙 Coinlar
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> Coinlar
       </div>
       <div class="nav-section">Hisobotlar</div>
       <div class="nav-item" onclick="nav('reports')">
@@ -281,7 +281,7 @@ textarea.inp{resize:vertical;min-height:80px}
         <div class="card">
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th>#</th><th>Ism Familiya</th><th>Telefon</th><th>Guruhlar</th><th>Natijalar</th><th style="text-align:center">🪙 Coin</th><th>Amallar</th></tr></thead>
+              <thead><tr><th>#</th><th>Ism Familiya</th><th>Telefon</th><th>Guruhlar</th><th>Natijalar</th><th style="text-align:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> Coin</th><th>Amallar</th></tr></thead>
               <tbody id="studentsTbody"></tbody>
             </table>
           </div>
@@ -388,7 +388,7 @@ textarea.inp{resize:vertical;min-height:80px}
       <!-- COINS PAGE -->
       <div class="page" id="page-coins">
         <div class="page-header">
-          <div class="page-title">🪙 Coin reytingi</div>
+          <div class="page-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> Coin reytingi</div>
           <div style="display:flex;gap:8px;align-items:center">
             <select id="coinMonthFilter" class="inp" style="width:auto" onchange="loadCoinRanking()">
               <option value="">Barcha vaqt</option>
@@ -776,7 +776,7 @@ async function renderLeaderboard() {
         <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
           <span style="font-size:18px;width:26px">${medals[i]}</span>
           <span style="flex:1;font-size:13px;font-weight:600">${r.name}</span>
-          <span style="font-weight:800;color:${coinColor(r.coins)}">🪙 ${r.coins}</span>
+          <span style="font-weight:800;color:${coinColor(r.coins)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> ${r.coins}</span>
         </div>`).join('')
       : '<div style="color:var(--muted);font-size:13px">Bu oyda coin yo\'q</div>';
   } catch(e) {
@@ -1209,7 +1209,7 @@ function renderStudents() {
     try {
       const { data } = await sb.from('student_coins').select('amount').eq('student_id', s.id);
       const total = (data||[]).reduce((sum,r)=>sum+r.amount,0);
-      el.textContent = '🪙 '+total;
+      el.textContent = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> '+total;
     } catch(e) { el.textContent = '—'; }
   });
 }
@@ -1241,10 +1241,10 @@ async function showAdminCoinHistory(stuId, stuName) {
   modal.className = 'modal-overlay';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
   modal.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:500px;margin:auto">
-    <div style="font-size:18px;font-weight:800;margin-bottom:16px">🪙 ${stuName} — Coin tarixi</div>
+    <div style="font-size:18px;font-weight:800;margin-bottom:16px"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> ${stuName} — Coin tarixi</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
       <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-size:26px;font-weight:900;color:#fcd34d">🪙 ${total}</div>
+        <div style="font-size:26px;font-weight:900;color:#fcd34d"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> ${total}</div>
         <div style="font-size:11px;color:var(--muted)">Jami</div>
       </div>
       <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
@@ -1261,7 +1261,7 @@ async function showAdminCoinHistory(stuId, stuName) {
         <thead><tr style="background:var(--bg3)">
           <th style="padding:8px 10px;text-align:left">Manba</th>
           <th style="padding:8px 10px;text-align:left">Izoh</th>
-          <th style="padding:8px 10px;text-align:center">🪙</th>
+          <th style="padding:8px 10px;text-align:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg></th>
           <th style="padding:8px 10px;text-align:right">Sana</th>
         </tr></thead>
         <tbody>
@@ -1327,7 +1327,7 @@ async function loadCoinRanking() {
     const jrnCoins   = coinData.filter(r=>r.source==='journal').reduce((s,r)=>s+r.amount,0);
     if(stats) stats.innerHTML = `
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
-        <div style="font-size:28px;font-weight:900;color:#fcd34d">🪙 ${totalCoins}</div>
+        <div style="font-size:28px;font-weight:900;color:#fcd34d"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> ${totalCoins}</div>
         <div style="font-size:12px;color:var(--muted)">Jami berilgan coin</div>
       </div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
@@ -1367,7 +1367,7 @@ async function loadCoinRanking() {
             <th style="padding:10px 12px;text-align:left">Guruh</th>
             <th style="padding:10px 12px;text-align:center">📝 Test</th>
             <th style="padding:10px 12px;text-align:center">📋 Dars</th>
-            <th style="padding:10px 12px;text-align:center">🪙 Jami</th>
+            <th style="padding:10px 12px;text-align:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> Jami</th>
             <th style="padding:10px 12px;text-align:center">Daraja</th>
           </tr></thead>
           <tbody>
@@ -1379,7 +1379,7 @@ async function loadCoinRanking() {
                 <td style="padding:10px 12px;text-align:center;color:#93c5fd;font-weight:700">${r.test}</td>
                 <td style="padding:10px 12px;text-align:center;color:#86efac;font-weight:700">${r.journal}</td>
                 <td style="padding:10px 12px;text-align:center">
-                  <span style="font-weight:900;font-size:16px;color:${coinColor(r.total)}">🪙 ${r.total}</span>
+                  <span style="font-weight:900;font-size:16px;color:${coinColor(r.total)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> ${r.total}</span>
                 </td>
                 <td style="padding:10px 12px;text-align:center">
                   <span style="font-size:11px;padding:3px 10px;border-radius:10px;
