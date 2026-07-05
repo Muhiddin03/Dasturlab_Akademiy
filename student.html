@@ -223,45 +223,64 @@ window.addEventListener('load', async () => {
 async function doStudentLogin() {
   const login = document.getElementById('loginInput').value.trim();
   const pass  = document.getElementById('passInput').value.trim();
-  const errEl = document.getElementById('loginErr');
   const btn   = document.getElementById('loginBtn');
-  errEl.style.display = 'none';
-  if (!login || !pass) { showErr('Login va parolni kiriting'); return; }
+  document.getElementById('loginErr').style.display = 'none';
+  if (!login || !pass) { showErr('Telefon va parolni kiriting'); return; }
 
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Kirilmoqda...';
 
+  const reset = () => { btn.disabled=false; btn.innerHTML='Kirish →'; };
+
   try {
-    // Find student by phone or email + password
-    // 1. Find auth record by phone + password
-    const { data: authData } = await sb.from('student_auth')
-      .select('student_id')
-      .eq('phone', login)
-      .eq('password', pass)
+    // Debug: log what we're searching
+    console.log('Login attempt:', login, pass);
+
+    // Step 1: find in student_auth by phone + password
+    const { data: authRows, error: authErr } = await sb
+      .from('student_auth')
+      .select('student_id, phone, password')
+      .eq('password', pass);
+
+    console.log('Auth rows:', authRows, authErr);
+
+    // Match phone flexibly (with/without +, spaces)
+    const cleanLogin = login.replace(/\s/g,'');
+    const authRow = (authRows||[]).find(r => {
+      const cleanPhone = (r.phone||'').replace(/\s/g,'');
+      return cleanPhone === cleanLogin ||
+             cleanPhone === '+'+cleanLogin ||
+             '+'+cleanPhone === cleanLogin;
+    });
+
+    console.log('Matched auth row:', authRow);
+
+    if (!authRow) {
+      showErr('Login yoki parol noto\'g\'ri');
+      reset(); return;
+    }
+
+    // Step 2: get student info
+    const { data: stu, error: stuErr } = await sb
+      .from('students')
+      .select('*')
+      .eq('id', authRow.student_id)
       .maybeSingle();
 
-    let data = null;
-    if (authData?.student_id) {
-      const { data: stuData } = await sb.from('students')
-        .select('*').eq('id', authData.student_id).maybeSingle();
-      data = stuData;
-    }
-    const error = null;
+    console.log('Student:', stu, stuErr);
 
-    if (error || !data) {
-      showErr('Login yoki parol noto\'g\'ri');
-      btn.disabled = false;
-      btn.innerHTML = 'Kirish →';
-      return;
+    if (!stu) {
+      showErr('O\'quvchi topilmadi. O\'qituvchingizga murojaat qiling.');
+      reset(); return;
     }
 
-    currentStudent = data_final || data;
-    localStorage.setItem('student_session', JSON.stringify(data_final || data));
+    currentStudent = stu;
+    localStorage.setItem('student_session', JSON.stringify(stu));
     await loadCabinet();
   } catch(e) {
-    showErr('Xato yuz berdi: ' + e.message);
-    btn.disabled = false;
-    btn.innerHTML = 'Kirish →';
+    console.error('Login error:', e);
+    showErr('Xato: ' + e.message);
+    reset();
   }
 }
 
