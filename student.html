@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>O'quvchi kabineti — Dasturlab Akademi</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js" onerror=""></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 ::-webkit-scrollbar{width:4px;height:4px}
@@ -113,18 +114,20 @@ tr:hover td{background:rgba(124,111,247,.03)}
       <div style="font-size:22px;font-weight:800">O'quvchi kabineti</div>
       <div style="font-size:13px;color:var(--muted);margin-top:6px">Login va parol bilan kiring</div>
     </div>
+    <form onsubmit="doStudentLogin();return false;" autocomplete="on">
     <div style="margin-bottom:14px">
-      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px;font-weight:600">Login (Telefon yoki email)</label>
-      <input class="inp" id="loginInput" placeholder="+998901234567 yoki email" type="text" onkeydown="if(event.key==='Enter')doStudentLogin()">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px;font-weight:600">Telefon raqam</label>
+      <input class="inp" id="loginInput" placeholder="+998901234567" type="tel" autocomplete="username">
     </div>
     <div style="margin-bottom:20px">
       <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px;font-weight:600">Parol</label>
-      <input class="inp" id="passInput" placeholder="Parolni kiriting" type="password" onkeydown="if(event.key==='Enter')doStudentLogin()">
+      <input class="inp" id="passInput" placeholder="Parolni kiriting" type="password" autocomplete="current-password">
     </div>
     <div id="loginErr" style="color:#fca5a5;font-size:13px;margin-bottom:12px;display:none"></div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doStudentLogin()" id="loginBtn">
+    <button class="btn btn-primary" style="width:100%;justify-content:center" type="submit" id="loginBtn">
       Kirish →
     </button>
+    </form>
     <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">
       Parol yo'qmi? O'qituvchingizdan so'rang
     </div>
@@ -160,7 +163,7 @@ tr:hover td{background:rgba(124,111,247,.03)}
 
 <div id="notifWrap"></div>
 
-<script src="/api/env.js" onerror=""></script>
+
 <script>
 const { createClient } = supabase;
 let sb = null;
@@ -171,7 +174,9 @@ let currentStudent = null;
 // ============================================================
 async function initSupabase() {
   if (window.SUPABASE_CONFIG?.url && !window.SUPABASE_CONFIG.url.includes('YOUR')) {
-    sb = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
+    // Remove /rest/v1 if accidentally included in URL
+    const url = window.SUPABASE_CONFIG.url.replace('/rest/v1','').replace(/\/$/,'');
+    sb = createClient(url, window.SUPABASE_CONFIG.key);
     return true;
   }
   try {
