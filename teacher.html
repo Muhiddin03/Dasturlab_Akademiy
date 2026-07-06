@@ -473,6 +473,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <input class="inp" id="editSPass" placeholder="Parolni o'rnating..." style="flex:1">
         <button class="btn btn-secondary btn-sm" onclick="genPass()">🎲 Yaratish</button>
       </div>
+      <div id="editSPassHint" style="font-size:12px;margin-top:5px;color:var(--muted)"></div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeM('editStudent')">Bekor</button>
@@ -1264,9 +1265,17 @@ async function openEditStudent(stuId) {
   document.getElementById('editSPass').value = '';
   // Load existing password from student_auth
   try {
-    const {data:auth} = await sb.from('student_auth').select('password').eq('student_id',stuId).maybeSingle();
-    if(auth?.password) document.getElementById('editSPass').value = auth.password;
-  } catch(e){}
+    const {data:auth,error:ae} = await sb.from('student_auth').select('password,phone').eq('student_id',stuId).maybeSingle();
+    console.log('Existing auth:', auth, ae);
+    if(auth?.password){
+      document.getElementById('editSPass').value = auth.password;
+      document.getElementById('editSPassHint').textContent = 'Mavjud parol: '+auth.password;
+      document.getElementById('editSPassHint').style.color = '#86efac';
+    } else {
+      document.getElementById('editSPassHint').textContent = 'Parol hali o\'rnatilmagan';
+      document.getElementById('editSPassHint').style.color = 'var(--muted)';
+    }
+  } catch(e){ console.warn('auth load err:',e); }
   openM('editStudent');
 }
 
@@ -1281,16 +1290,25 @@ async function saveEditStudent() {
   const{error}=await sb.from('students').update(updates).eq('id',id);
   if(error){notify('Xato: '+error.message,'err');return;}
 
-  // Save password separately to student_auth table
+  // Save password to student_auth
   if(pass){
-    await sb.from('student_auth').upsert([{
+    // First try delete+insert (avoid upsert conflict issues)
+    await sb.from('student_auth').delete().eq('student_id',id);
+    const{error:authErr}=await sb.from('student_auth').insert({
       student_id:id,
-      phone:phone||id,
+      phone:phone||'',
       password:pass
-    }],{onConflict:'student_id'});
-    notify('Parol saqlandi: '+pass);
+    });
+    if(authErr){
+      notify('Parol saqlashda xato: '+authErr.message,'err');
+      console.error('student_auth insert error:',authErr);
+    } else {
+      notify('✅ Parol saqlandi: '+pass+' (o\'quvchiga yuboring)');
+    }
   }
-  closeM('editStudent');notify("O\'quvchi ma\'lumotlari yangilandi ✅");await loadAll();
+  closeM('editStudent');
+  notify("O\'quvchi ma\'lumotlari yangilandi ✅");
+  await loadAll();
 }
 
 // Oyning oxirgi kunini to'g'ri hisoblash
@@ -3371,7 +3389,7 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>{
 // NOTIFICATIONS
 // ============================================================
 function notify(msg,type='success'){
-  const wrap=document.getElementById('notifWrap');
+  const wrap=document.getElementById('notifWrap'); 
   const el=document.createElement('div');
   el.className='notif'+(type==='err'?' err':'');
   el.innerHTML=`<span>${type==='success'?'✅':'❌'}</span> ${msg}`;
