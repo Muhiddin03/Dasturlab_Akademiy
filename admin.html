@@ -527,14 +527,33 @@ textarea.inp{resize:vertical;min-height:80px}
 
 <!-- EDIT STUDENT ADMIN -->
 <div class="modal-overlay" id="ov-editStudent">
-  <div class="modal">
+  <div class="modal" style="max-width:540px">
     <div class="modal-title">O'quvchini tahrirlash</div>
     <input type="hidden" id="editStuId">
     <div class="form-grid">
       <div class="form-row"><label class="form-label">Ism</label><input class="inp" id="editSFirst" placeholder="Ism"></div>
       <div class="form-row"><label class="form-label">Familiya</label><input class="inp" id="editSLast" placeholder="Familiya"></div>
     </div>
-    <div class="form-row"><label class="form-label">Telefon</label><input class="inp" id="editSPhone" placeholder="+998 90..."></div>
+    <div class="form-row"><label class="form-label">Telefon (login)</label>
+      <input class="inp" id="editSPhone" placeholder="+998 90..."></div>
+    <div class="form-row"><label class="form-label">Izoh</label>
+      <textarea class="inp" id="editSNote" placeholder="Ixtiyoriy..." style="min-height:56px"></textarea></div>
+
+    <div class="form-row" style="margin-top:4px">
+      <label class="form-label">Guruhlar</label>
+      <div id="editSGroupsWrap" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
+    </div>
+
+    <hr style="border-color:var(--border);margin:14px 0">
+    <div class="form-row">
+      <label class="form-label">🔐 Parol (student.html uchun)</label>
+      <div style="display:flex;gap:8px">
+        <input class="inp" id="editSPass" placeholder="Parolni o'rnating..." style="flex:1">
+        <button class="btn btn-secondary btn-sm" onclick="adminGenPass()">🎲</button>
+      </div>
+      <div id="editSPassHint" style="font-size:12px;margin-top:5px;color:var(--muted)"></div>
+    </div>
+
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeM('editStudent')">Bekor</button>
       <button class="btn btn-primary" onclick="saveEditStudent()">💾 Saqlash</button>
@@ -1404,13 +1423,46 @@ async function deleteStudent(id) {
   notify('O\'quvchi o\'chirildi'); await loadAll();
 }
 
-function openEditStudent(stuId) {
+function adminGenPass() {
+  const chars='abcdefghjkmnpqrstuvwxyz23456789';
+  let p=''; for(let i=0;i<8;i++) p+=chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('editSPass').value=p;
+}
+
+async function openEditStudent(stuId) {
   const s = allStudents.find(x=>x.id===stuId);
   if(!s) return;
-  document.getElementById('editStuId').value = stuId;
-  document.getElementById('editSFirst').value = s.first_name||'';
-  document.getElementById('editSLast').value = s.last_name||'';
-  document.getElementById('editSPhone').value = s.phone||'';
+  document.getElementById('editStuId').value   = stuId;
+  document.getElementById('editSFirst').value  = s.first_name||'';
+  document.getElementById('editSLast').value   = s.last_name||'';
+  document.getElementById('editSPhone').value  = s.phone||'';
+  document.getElementById('editSNote').value   = s.note||'';
+  document.getElementById('editSPass').value   = '';
+  document.getElementById('editSPassHint').textContent = '';
+
+  // Load student's current groups
+  const stuGroups = (s.groupIds||[]);
+  const wrap = document.getElementById('editSGroupsWrap');
+  wrap.innerHTML = allGroups.map(g => `
+    <label style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid ${stuGroups.includes(g.id)?'var(--purple)':'var(--border)'};border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;transition:.1s">
+      <input type="checkbox" name="editSGroup" value="${g.id}" ${stuGroups.includes(g.id)?'checked':''} style="accent-color:var(--purple)">
+      <span style="width:8px;height:8px;border-radius:50%;background:${g.color||'var(--purple)'};display:inline-block"></span>
+      ${g.name}
+    </label>`).join('');
+
+  // Load existing password
+  try {
+    const {data:auth} = await sb.from('student_auth').select('password').eq('student_id',stuId).maybeSingle();
+    if(auth?.password){
+      document.getElementById('editSPass').value = auth.password;
+      document.getElementById('editSPassHint').textContent = 'Mavjud parol: ' + auth.password;
+      document.getElementById('editSPassHint').style.color = '#86efac';
+    } else {
+      document.getElementById('editSPassHint').textContent = "Parol hali o'rnatilmagan";
+      document.getElementById('editSPassHint').style.color = 'var(--muted)';
+    }
+  } catch(e){}
+
   openM('editStudent');
 }
 
@@ -1419,10 +1471,32 @@ async function saveEditStudent() {
   const first = document.getElementById('editSFirst').value.trim();
   const last  = document.getElementById('editSLast').value.trim();
   const phone = document.getElementById('editSPhone').value.trim();
+  const note  = document.getElementById('editSNote')?.value.trim()||'';
+  const pass  = document.getElementById('editSPass')?.value.trim()||'';
   if(!first||!last){notify('Ism va familiya kerak','err');return;}
-  const{error}=await sb.from('students').update({first_name:first,last_name:last,phone}).eq('id',id);
+
+  // Update student info
+  const{error}=await sb.from('students').update({first_name:first,last_name:last,phone,note}).eq('id',id);
   if(error){notify('Xato: '+error.message,'err');return;}
-  closeM('editStudent');notify("O'quvchi ma'lumotlari yangilandi ✅");await loadAll();
+
+  // Update groups — delete all, then re-insert checked
+  const checked=[...document.querySelectorAll('input[name="editSGroup"]:checked')].map(c=>c.value);
+  await sb.from('student_groups').delete().eq('student_id',id);
+  if(checked.length){
+    await sb.from('student_groups').insert(checked.map(gid=>({student_id:id,group_id:gid})));
+  }
+
+  // Save password
+  if(pass){
+    await sb.from('student_auth').delete().eq('student_id',id);
+    const{error:ae}=await sb.from('student_auth').insert({student_id:id,phone:phone||'',password:pass});
+    if(ae) notify('Parol xato: '+ae.message,'err');
+    else notify('Parol saqlandi: '+pass);
+  }
+
+  closeM('editStudent');
+  notify("O'quvchi ma'lumotlari yangilandi ✅");
+  await loadAll();
 }
 
 // ============================================================
