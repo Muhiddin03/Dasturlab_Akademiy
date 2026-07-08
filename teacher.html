@@ -224,6 +224,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
         Yozma tekshirish
         <span class="pending-badge" id="writtenBadge" style="display:none">0</span>
       </div>
+      <div class="nav-item" data-page="homework" onclick="nav(this,'homework');loadHomework()">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        Uy vazifasi
+      </div>
       <div class="nav-section">Natijalar</div>
       <div class="nav-item" data-page="results" onclick="nav(this,'results')">
         <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -451,6 +455,25 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeM('addStudent')">Bekor</button>
       <button class="btn btn-primary" onclick="saveStudent()">Saqlash</button>
+      <!-- HOMEWORK PAGE -->
+      <div class="page" id="page-homework">
+        <div class="page-header">
+          <div class="page-title">📝 Uy vazifalari</div>
+          <button class="btn btn-primary btn-sm" onclick="openM('addHomework')">+ Vazifa berish</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+          <select class="inp" id="hwGroupSel" onchange="loadHomework()" style="width:auto">
+            <option value="">Barcha guruhlar</option>
+          </select>
+          <select class="inp" id="hwStatusSel" onchange="loadHomework()" style="width:auto">
+            <option value="">Barcha</option>
+            <option value="active">Faol</option>
+            <option value="closed">Yopilgan</option>
+          </select>
+        </div>
+        <div id="homeworkList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -776,6 +799,33 @@ Javob: C</pre>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeM('editTest')">Bekor</button>
       <button class="btn btn-primary" onclick="saveEditTest()">💾 Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD HOMEWORK -->
+<div class="modal-overlay" id="ov-addHomework">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-title">📝 Uy vazifasi berish</div>
+    <div class="form-row"><label class="form-label">Sarlavha</label>
+      <input class="inp" id="hwTitle" placeholder="Vazifa nomi..."></div>
+    <div class="form-row"><label class="form-label">Tavsif</label>
+      <textarea class="inp" id="hwDesc" placeholder="Vazifa tavsifi, topshiriq..." style="min-height:80px"></textarea></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Guruh</label>
+        <select class="inp" id="hwGroup"></select></div>
+      <div class="form-row"><label class="form-label">Muddat</label>
+        <input class="inp" id="hwDue" type="date"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Max ball</label>
+        <input class="inp" id="hwMaxScore" type="number" value="10" min="1"></div>
+      <div class="form-row"><label class="form-label">🪙 Coin (bajarilsa)</label>
+        <input class="inp" id="hwCoin" type="number" value="15" min="0"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeM('addHomework')">Bekor</button>
+      <button class="btn btn-primary" onclick="saveHomework()">💾 Berish</button>
     </div>
   </div>
 </div>
@@ -1950,7 +2000,70 @@ async function viewTestQuestions(testId) {
       </div>`).join('')
     : '<div style="text-align:center;color:var(--muted);padding:30px">Savollar topilmadi</div>';
 
+  // Add analysis button
+  const analysisBtn = document.createElement('button');
+  analysisBtn.className='btn btn-secondary btn-sm';
+  analysisBtn.style.cssText='margin-top:12px;width:100%';
+  analysisBtn.textContent="📊 Savol tahlili ko'rish";
+  analysisBtn.onclick = () => showQuestionAnalysis(testId, qs);
+  document.getElementById('vtqContent').appendChild(analysisBtn);
+
   openM('viewTestQ');
+}
+
+async function showQuestionAnalysis(testId, qs) {
+  // Get all results for this test
+  const { data: results } = await sb.from('quiz_results').select('answers,score,total,percent').eq('test_id', testId);
+  if (!results || !results.length) { notify('Hali natijalar yo\'q', 'err'); return; }
+
+  const letters = ['A','B','C','D','E','F'];
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.style.zIndex = '400';
+
+  const stats = qs.map(q => {
+    let correct=0, wrong=0, total=results.length;
+    results.forEach(r => {
+      const ans = (r.answers||{})[q.id];
+      if (ans === q.correct_index) correct++;
+      else if (ans !== undefined) wrong++;
+    });
+    const pct = total>0 ? Math.round(correct/total*100) : 0;
+    return { q, correct, wrong, total, pct };
+  });
+
+  const avgScore = Math.round(results.reduce((s,r)=>s+r.percent,0)/results.length);
+
+  modal.innerHTML = `<div class="modal modal-lg" style="max-width:600px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="modal-title" style="margin:0">📊 Savol tahlili</div>
+      <button class="btn btn-secondary btn-sm" onclick="this.closest('.modal-overlay').remove()">✕</button>
+    </div>
+    <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:14px;display:flex;gap:20px;text-align:center">
+      <div style="flex:1"><div style="font-size:24px;font-weight:800;color:var(--purple)">${results.length}</div><div style="font-size:11px;color:var(--muted)">Topshirgan</div></div>
+      <div style="flex:1"><div style="font-size:24px;font-weight:800;color:${avgScore>=70?'var(--green)':'var(--amber)'}">${avgScore}%</div><div style="font-size:11px;color:var(--muted)">O'rtacha</div></div>
+      <div style="flex:1"><div style="font-size:24px;font-weight:800;color:var(--red)">${stats.filter(s=>s.pct<50).length}</div><div style="font-size:11px;color:var(--muted)">Qiyin savollar</div></div>
+    </div>
+    <div style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+      ${stats.sort((a,b)=>a.pct-b.pct).map((s,i)=>`
+        <div style="background:var(--bg3);border:1px solid ${s.pct<50?'rgba(239,68,68,.3)':s.pct<75?'rgba(245,158,11,.2)':'rgba(34,197,94,.2)'};border-radius:8px;padding:12px">
+          <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
+            <span style="background:${s.pct<50?'rgba(239,68,68,.2)':s.pct<75?'rgba(245,158,11,.15)':'rgba(34,197,94,.15)'};color:${s.pct<50?'#fca5a5':s.pct<75?'#fcd34d':'#86efac'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;flex-shrink:0">${s.pct}%</span>
+            <span style="font-size:13px;font-weight:600">${s.q.question_text||'—'}</span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${s.pct}%;background:${s.pct<50?'var(--red)':s.pct<75?'var(--amber)':'var(--green)'};border-radius:3px;transition:.3s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px">
+            <span>✅ ${s.correct} to'g'ri</span>
+            <span>❌ ${s.wrong} xato</span>
+            <span>Jami: ${s.total}</span>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+  modal.addEventListener('click', e=>{if(e.target===modal)modal.remove();});
+  document.body.appendChild(modal);
 }
 
 async function deleteOneQuestion(qId, testId) {
@@ -2938,8 +3051,11 @@ async function renderRanking(){
   const coinColor = (c) => c >= 500 ? '#fcd34d' : c >= 200 ? '#c4b5fd' : '#86efac';
 
   wrap.innerHTML = `
-    <div style="font-size:12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px;padding:8px 12px;margin-bottom:12px;color:#fcd34d">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> Reyting to'plangan coinlar bo'yicha hisoblanadi (jurnal + test natijalari)
+    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+      <div style="flex:1;font-size:12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px;padding:8px 12px;color:#fcd34d">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> Reyting coinlar bo'yicha hisoblanadi
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openBonusCoin()" style="flex-shrink:0;white-space:nowrap">🎁 Bonus coin</button>
     </div>` +
     (ranked.length
       ? `<div class="card"><div class="tbl-wrap"><table>
@@ -3021,6 +3137,202 @@ async function showStudentCoins(stuId, stuName) {
 }
 
 // ============================================================
+// HOMEWORK (Uy vazifasi)
+// ============================================================
+async function loadHomework() {
+  const gf = document.getElementById('hwGroupSel')?.value||'';
+  const sf = document.getElementById('hwStatusSel')?.value||'';
+  const wrap = document.getElementById('homeworkList');
+  if(!wrap) return;
+  wrap.innerHTML='<div style="color:var(--muted);padding:20px">Yuklanmoqda...</div>';
+
+  // Fill group select
+  const gs = document.getElementById('hwGroupSel');
+  if(gs && gs.options.length<=1) myGroups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;gs.appendChild(o);});
+
+  let q = sb.from('homework').select('*').eq('teacher_id', currentUser.id).order('created_at',{ascending:false});
+  if(gf) q=q.eq('group_id',gf);
+  if(sf) q=q.eq('status',sf);
+  const{data:hws}=await q;
+
+  if(!hws||!hws.length){
+    wrap.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px">Uy vazifalari yo\'q</div>';
+    return;
+  }
+
+  // Get submission counts
+  const hwIds=hws.map(h=>h.id);
+  const{data:subs}=await sb.from('homework_submissions').select('homework_id,status').in('homework_id',hwIds);
+
+  wrap.innerHTML=hws.map(hw=>{
+    const g=myGroups.find(x=>x.id===hw.group_id);
+    const hwSubs=(subs||[]).filter(s=>s.homework_id===hw.id);
+    const pending=hwSubs.filter(s=>s.status==='submitted').length;
+    const checked=hwSubs.filter(s=>s.status==='checked').length;
+    const due=hw.due_date?new Date(hw.due_date).toLocaleDateString('uz-UZ',{day:'numeric',month:'short'}):'—';
+    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-weight:700;font-size:14px">${hw.title}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">${g?.name||'—'} • Muddat: ${due}</div>
+        </div>
+        <span class="badge ${hw.status==='active'?'badge-green':'badge-red'}">${hw.status==='active'?'Faol':'Yopilgan'}</span>
+      </div>
+      ${hw.description?`<div style="font-size:12px;color:var(--muted);line-height:1.4">${hw.description}</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
+        <div style="background:var(--bg3);border-radius:8px;padding:8px">
+          <div style="font-weight:700;color:var(--amber)">${pending}</div>
+          <div style="font-size:10px;color:var(--muted)">Kutmoqda</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:8px">
+          <div style="font-weight:700;color:var(--green)">${checked}</div>
+          <div style="font-size:10px;color:var(--muted)">Tekshirildi</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:8px">
+          <div style="font-weight:700;color:var(--gold)"><svg width="12" height="12" viewBox="0 0 24 24" fill="#fcd34d"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg>${hw.coin_reward||0}</div>
+          <div style="font-size:10px;color:var(--muted)">Coin</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${pending?`<button class="btn btn-primary btn-xs" onclick="viewHomeworkSubs('${hw.id}','${hw.title.replace(/'/g,'')}')" style="flex:1">✅ Tekshirish (${pending})</button>`:''}
+        <button class="btn btn-secondary btn-xs" onclick="toggleHwStatus('${hw.id}','${hw.status}')" style="flex:1">${hw.status==='active'?'⏸ Yopish':'▶ Ochish'}</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteHomework('${hw.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveHomework() {
+  const title=document.getElementById('hwTitle').value.trim();
+  const desc=document.getElementById('hwDesc').value.trim();
+  const gid=document.getElementById('hwGroup').value;
+  const due=document.getElementById('hwDue').value;
+  const maxScore=parseInt(document.getElementById('hwMaxScore').value)||10;
+  const coin=parseInt(document.getElementById('hwCoin').value)||15;
+  if(!title){notify('Sarlavha kerak','err');return;}
+  const{error}=await sb.from('homework').insert({
+    teacher_id:currentUser.id, group_id:gid||null,
+    title, description:desc, due_date:due||null,
+    max_score:maxScore, coin_reward:coin, status:'active'
+  });
+  if(error){notify('Xato: '+error.message,'err');return;}
+  closeM('addHomework');notify('Uy vazifasi berildi ✅');
+  await loadHomework();
+}
+
+async function toggleHwStatus(id,cur){
+  const ns=cur==='active'?'closed':'active';
+  await sb.from('homework').update({status:ns}).eq('id',id);
+  await loadHomework();
+}
+
+async function deleteHomework(id){
+  await sb.from('homework_submissions').delete().eq('homework_id',id);
+  await sb.from('homework').delete().eq('id',id);
+  notify('Vazifa o\'chirildi');await loadHomework();
+}
+
+async function viewHomeworkSubs(hwId, hwTitle){
+  const{data:subs}=await sb.from('homework_submissions').select('*').eq('homework_id',hwId).order('submitted_at',{ascending:false});
+  const{data:hw}=await sb.from('homework').select('*').eq('id',hwId).single();
+  const modal=document.createElement('div');
+  modal.className='modal-overlay open';modal.style.zIndex='300';
+  const pending=(subs||[]).filter(s=>s.status==='submitted');
+  modal.innerHTML=`<div class="modal modal-lg" style="max-width:600px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="modal-title" style="margin:0">📝 ${hwTitle}</div>
+      <button class="btn btn-secondary btn-sm" onclick="this.closest('.modal-overlay').remove()">✕</button>
+    </div>
+    <div style="max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+      ${(subs||[]).length?pending.concat((subs||[]).filter(s=>s.status!=='submitted')).map(sub=>{
+        const stu=myStudents.find(s=>s.id===sub.student_id);
+        const name=stu?stu.last_name+' '+stu.first_name:sub.student_name||'O\'quvchi';
+        return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <strong>${name}</strong>
+            <span class="badge ${sub.status==='checked'?'badge-green':sub.status==='submitted'?'badge-amber':'badge-blue'}">${sub.status==='checked'?'✅ Tekshirildi':sub.status==='submitted'?'⏳ Kutmoqda':'📤 Yuborildi'}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);background:var(--bg);border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.5">${sub.answer_text||'Javob yo\'q'}</div>
+          ${sub.status==='submitted'?`<div style="display:flex;gap:6px;align-items:center">
+            <input type="number" id="hwsc-${sub.id}" min="0" max="${hw?.max_score||10}" value="${hw?.max_score||10}"
+              class="inp" style="width:70px;margin:0;padding:5px 8px;font-size:12px" placeholder="Ball">
+            <span style="font-size:12px;color:var(--muted)">/ ${hw?.max_score||10}</span>
+            <button class="btn btn-primary btn-xs" onclick="checkHwSub('${sub.id}','${sub.student_id}','${hwId}',${hw?.coin_reward||15},${hw?.max_score||10})" style="margin-left:auto">✅ Tasdiqlash</button>
+          </div>`:`<div style="font-size:12px;color:var(--green)">Ball: ${sub.score||0}/${hw?.max_score||10}</div>`}
+        </div>`;
+      }).join(''):'<div style="text-align:center;color:var(--muted);padding:30px">Hali topshirilmagan</div>'}
+    </div>
+  </div>`;
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  document.body.appendChild(modal);
+}
+
+async function checkHwSub(subId, stuId, hwId, coinReward, maxScore){
+  const score=parseInt(document.getElementById('hwsc-'+subId)?.value)||0;
+  const pct=maxScore>0?Math.round(score/maxScore*100):0;
+  const earnedCoin=Math.round(coinReward*pct/100);
+  await sb.from('homework_submissions').update({status:'checked',score,checked_at:new Date().toISOString()}).eq('id',subId);
+  if(earnedCoin>0&&stuId){
+    await sb.from('student_coins').insert({
+      student_id:stuId, source:'homework', source_id:'hw_'+subId,
+      amount:earnedCoin, description:'Uy vazifasi: '+pct+'%',
+      awarded_at:new Date().toISOString()
+    });
+  }
+  notify('Tekshirildi! Coin: +'+earnedCoin);
+  document.querySelector('[data-page="homework"]')?.click();
+}
+
+
+
+// ============================================================
+// BONUS COIN
+// ============================================================
+function openBonusCoin() {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.style.zIndex = '300';
+  modal.innerHTML = `<div class="modal" style="max-width:420px">
+    <div class="modal-title">🎁 Bonus coin berish</div>
+    <div class="form-row"><label class="form-label">O'quvchi</label>
+      <select class="inp" id="bonusStuSel">
+        ${myStudents.map(s=>`<option value="${s.id}">${s.last_name} ${s.first_name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">Coin miqdori</label>
+      <input class="inp" id="bonusAmount" type="number" value="10" min="1" max="500" placeholder="10">
+    </div>
+    <div class="form-row"><label class="form-label">Sabab</label>
+      <input class="inp" id="bonusReason" placeholder="Faollik, musobaqa, yaxshi xulq...">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Bekor</button>
+      <button class="btn btn-primary" onclick="saveBonusCoin(this)">🎁 Berish</button>
+    </div>
+  </div>`;
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  document.body.appendChild(modal);
+}
+
+async function saveBonusCoin(btn) {
+  const stuId  = document.getElementById('bonusStuSel').value;
+  const amount = parseInt(document.getElementById('bonusAmount').value)||0;
+  const reason = document.getElementById('bonusReason').value.trim()||'Bonus';
+  if(!stuId||amount<1){notify("Ma'lumotlarni to'ldiring",'err');return;}
+  btn.disabled=true;btn.textContent='...';
+  const sourceId='bonus_'+stuId+'_'+Date.now();
+  const{error}=await sb.from('student_coins').insert({
+    student_id:stuId, source:'bonus', source_id:sourceId,
+    amount, description:'🎁 Bonus: '+reason,
+    awarded_at:new Date().toISOString()
+  });
+  if(error){notify('Xato: '+error.message,'err');btn.disabled=false;btn.textContent='🎁 Berish';return;}
+  btn.closest('.modal-overlay').remove();
+  notify('Bonus coin berildi: +'+amount+' 🎁');
+  await loadAll();
+}
+
+// ============================================================
 // SELECTS POPULATION
 // ============================================================
 function populateSelects() {
@@ -3033,6 +3345,20 @@ function populateSelects() {
   });
 
   // Jurnal selectlari — prefixsiz (birinchi guruh tanliq bo'ladi)
+  // Show schedule hint in journal
+  const jgSel = document.getElementById('jGroupSel');
+  if(jgSel) {
+    const today = new Date();
+    const dayNames = ['Yakshanba','Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba'];
+    const todayName = dayNames[today.getDay()];
+    // Find groups that have class today based on name
+    const todayGroups = myGroups.filter(g => g.name && g.name.toLowerCase().includes(todayName.toLowerCase().slice(0,3)));
+    if(todayGroups.length) {
+      const hint = document.getElementById('jScheduleHint');
+      if(hint) hint.textContent = '📅 Bugun ('+ todayName +'): '+todayGroups.map(g=>g.name).join(', ');
+    }
+  }
+
   ['jGroupSel','jhGroupSel','jsGroupSel','catGroup'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = gopts;
@@ -3359,6 +3685,13 @@ function importToManual(qs) {
 
 function openM(name){
   document.getElementById('ov-'+name).classList.add('open');
+  if(name==='addHomework'){
+    const gs=document.getElementById('hwGroup');
+    if(gs) gs.innerHTML=myGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    const due=new Date(); due.setDate(due.getDate()+7);
+    const dueInp=document.getElementById('hwDue');
+    if(dueInp) dueInp.value=due.toISOString().slice(0,10);
+  }
   if(name==='createTest'){
     document.getElementById('questionsWrap').innerHTML='';
     qCounter=0;
@@ -3389,7 +3722,7 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>{
 // NOTIFICATIONS
 // ============================================================
 function notify(msg,type='success'){
-  const wrap=document.getElementById('notifWrap'); 
+  const wrap=document.getElementById('notifWrap');
   const el=document.createElement('div');
   el.className='notif'+(type==='err'?' err':'');
   el.innerHTML=`<span>${type==='success'?'✅':'❌'}</span> ${msg}`;
