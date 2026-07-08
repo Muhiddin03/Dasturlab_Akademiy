@@ -384,6 +384,25 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div id="writtenList"></div>
       </div>
 
+      <!-- HOMEWORK PAGE -->
+      <div class="page" id="page-homework">
+        <div class="page-header">
+          <div class="page-title">📝 Uy vazifalari</div>
+          <button class="btn btn-primary btn-sm" onclick="openM('addHomework')">+ Vazifa berish</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+          <select class="inp" id="hwGroupSel" onchange="loadHomework()" style="width:auto">
+            <option value="">Barcha guruhlar</option>
+          </select>
+          <select class="inp" id="hwStatusSel" onchange="loadHomework()" style="width:auto">
+            <option value="">Barcha</option>
+            <option value="active">Faol</option>
+            <option value="closed">Yopilgan</option>
+          </select>
+        </div>
+        <div id="homeworkList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+      </div>
+
       <!-- RESULTS -->
       <div class="page" id="page-results">
         <div class="page-header">
@@ -455,25 +474,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeM('addStudent')">Bekor</button>
       <button class="btn btn-primary" onclick="saveStudent()">Saqlash</button>
-      <!-- HOMEWORK PAGE -->
-      <div class="page" id="page-homework">
-        <div class="page-header">
-          <div class="page-title">📝 Uy vazifalari</div>
-          <button class="btn btn-primary btn-sm" onclick="openM('addHomework')">+ Vazifa berish</button>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-          <select class="inp" id="hwGroupSel" onchange="loadHomework()" style="width:auto">
-            <option value="">Barcha guruhlar</option>
-          </select>
-          <select class="inp" id="hwStatusSel" onchange="loadHomework()" style="width:auto">
-            <option value="">Barcha</option>
-            <option value="active">Faol</option>
-            <option value="closed">Yopilgan</option>
-          </select>
-        </div>
-        <div id="homeworkList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
-      </div>
-
     </div>
   </div>
 </div>
@@ -2925,36 +2925,44 @@ async function showStudentJournalScore(stuId, stuName) {
 async function awardJournalCoins(rows, groupId) {
   try {
     const cats = myCategories.filter(c => !c.group_id || c.group_id === groupId);
-    if (!cats.length) return;
+    if (!cats.length) {
+      console.log('awardJournalCoins: no categories for group', groupId);
+      return;
+    }
 
-    const coinRows = [];
     for (const row of rows) {
       if (!row.student_id || !row.grades) continue;
       let totalCoin = 0;
       cats.forEach(c => {
         const ball = (row.grades)[c.id];
         if (ball !== undefined && ball !== '') {
-          const mult = c.coin_multiplier || 1;
+          // coin_multiplier may not exist in DB yet — default to 1
+          const mult = c.coin_multiplier != null ? parseFloat(c.coin_multiplier) : 1;
           totalCoin += Math.round((parseFloat(ball) || 0) * mult);
         }
       });
-      if (totalCoin > 0) {
-        coinRows.push({
-          student_id: row.student_id,
-          source: 'journal',
-          source_id: row.lesson_date + '_' + groupId,
-          amount: totalCoin,
-          description: 'Dars: ' + row.lesson_date,
-          awarded_at: new Date().toISOString()
-        });
-      }
+      if (totalCoin <= 0) continue;
+
+      // source_id MUST include student_id to be unique per student
+      const sourceId = 'jrn_' + row.student_id + '_' + row.lesson_date;
+
+      // Delete old record first (avoid constraint issues)
+      await sb.from('student_coins').delete()
+        .eq('student_id', row.student_id)
+        .eq('source_id', sourceId);
+
+      const { error } = await sb.from('student_coins').insert({
+        student_id: row.student_id,
+        source: 'journal',
+        source_id: sourceId,
+        amount: totalCoin,
+        description: 'Dars: ' + row.lesson_date,
+        awarded_at: new Date().toISOString()
+      });
+      if (error) console.error('coin insert error:', error, 'row:', row);
+      else console.log('Coin saved:', row.student_id, totalCoin, sourceId);
     }
-    if (coinRows.length) {
-      // Upsert by student + source_id to avoid duplicates
-      await sb.from('student_coins').upsert(coinRows,
-        { onConflict: 'student_id,source_id', ignoreDuplicates: false });
-    }
-  } catch(e) { console.warn('awardJournalCoins error:', e); }
+  } catch(e) { console.error('awardJournalCoins error:', e); }
 }
 
 // Award coins from test result
