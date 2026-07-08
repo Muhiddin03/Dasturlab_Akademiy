@@ -148,6 +148,7 @@ tr:hover td{background:rgba(124,111,247,.03)}
     <div class="tabs">
       <div class="tab active" onclick="switchTab('results')">📝 Test natijalari</div>
       <div class="tab" onclick="switchTab('journal')">📋 Jurnal</div>
+      <div class="tab" onclick="switchTab('homework')">🏠 Uy vazifasi</div>
       <div class="tab" onclick="switchTab('coins')">Coinlar</div>
       <div class="tab" onclick="switchTab('ranking')">🏆 Reyting</div>
     </div>
@@ -155,6 +156,7 @@ tr:hover td{background:rgba(124,111,247,.03)}
     <!-- Tab panels -->
     <div id="tab-results"></div>
     <div id="tab-journal" style="display:none"></div>
+    <div id="tab-homework" style="display:none"></div>
     <div id="tab-coins" style="display:none"></div>
     <div id="tab-ranking" style="display:none"></div>
 
@@ -336,9 +338,12 @@ async function loadCabinet() {
     <div style="text-align:center">
       <div id="totalCoinDisplay" style="font-size:32px;font-weight:900;color:var(--gold)">...</div>
       <div style="font-size:12px;color:var(--muted)">Jami coin</div>
+      <div id="badgeDisplay" style="margin-top:6px"></div>
     </div>`;
 
   // Load everything in parallel
+  currentStudent.groupIds = gids; // store for use in tabs
+
   const [coinsRes, resultsRes, journalRes] = await Promise.all([
     sb.from('student_coins').select('*').eq('student_id', s.id).order('awarded_at', {ascending:false}),
     sb.from('quiz_results').select('*').eq('student_id', s.id).order('taken_at', {ascending:false}),
@@ -351,6 +356,17 @@ async function loadCabinet() {
 
   const totalCoins = coins.reduce((s,r) => s+r.amount, 0);
   document.getElementById('totalCoinDisplay').innerHTML = coinIcon(20) + totalCoins;
+
+  // Badge system
+  const badgeEl = document.getElementById('badgeDisplay');
+  if(badgeEl) {
+    let badge='', badgeColor='';
+    if(totalCoins>=1000){badge='💎 Diamond';badgeColor='#67e8f9';}
+    else if(totalCoins>=500){badge='🥇 Pro';badgeColor='#fcd34d';}
+    else if(totalCoins>=200){badge='🥈 Yaxshi';badgeColor='#c4b5fd';}
+    else if(totalCoins>=50){badge='🥉 Yangi';badgeColor='#86efac';}
+    if(badge) badgeEl.innerHTML=`<span style="font-size:12px;font-weight:700;color:${badgeColor};background:rgba(255,255,255,.05);border-radius:20px;padding:3px 10px">${badge}</span>`;
+  }
 
   // Stats
   const testAvg = results.length ? Math.round(results.reduce((a,r)=>a+r.percent,0)/results.length) : null;
@@ -379,6 +395,7 @@ async function loadCabinet() {
   // Render default tab
   renderResults(results);
   renderJournal(journal, gids);
+  renderHomework(gids);
   renderCoins(coins);
   renderRanking(s.id, gids);
 }
@@ -395,10 +412,10 @@ function coinIcon(size=14) {
 // ============================================================
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const names = ['results','journal','coins','ranking'];
+    const names = ['results','journal','homework','coins','ranking'];
     t.classList.toggle('active', names[i]===name);
   });
-  ['results','journal','coins','ranking'].forEach(n => {
+  ['results','journal','homework','coins','ranking'].forEach(n => {
     document.getElementById('tab-'+n).style.display = n===name?'':'none';
   });
 }
@@ -509,6 +526,78 @@ async function renderJournal(journal, gids) {
       </tbody>
     </table>
   </div>`;
+}
+
+// ============================================================
+// UY VAZIFASI
+// ============================================================
+async function renderHomework(gids) {
+  const wrap = document.getElementById('tab-homework');
+  if(!gids.length){
+    wrap.innerHTML='<div class="card" style="text-align:center;color:var(--muted);padding:40px">Guruhga biriktirilmagan</div>';
+    return;
+  }
+
+  // Load active homeworks for student's groups
+  const{data:hws}=await sb.from('homework').select('*').in('group_id',gids).eq('status','active').order('due_date',{ascending:true});
+  // Load student's submissions
+  const hwIds=(hws||[]).map(h=>h.id);
+  let subs=[];
+  if(hwIds.length){
+    const{data:s}=await sb.from('homework_submissions').select('*').eq('student_id',currentStudent.id).in('homework_id',hwIds);
+    subs=s||[];
+  }
+
+  if(!hws||!hws.length){
+    wrap.innerHTML='<div class="card" style="text-align:center;color:var(--muted);padding:40px">Hozircha uy vazifasi yo\'q</div>';
+    return;
+  }
+
+  wrap.innerHTML=`<div style="display:flex;flex-direction:column;gap:12px">
+    ${hws.map(hw=>{
+      const sub=subs.find(s=>s.homework_id===hw.id);
+      const due=hw.due_date?new Date(hw.due_date).toLocaleDateString('uz-UZ',{day:'numeric',month:'short'}):'—';
+      const overdue=hw.due_date&&new Date(hw.due_date)<new Date();
+      return `<div class="card" style="border:1px solid ${sub?.status==='checked'?'rgba(34,197,94,.3)':overdue?'rgba(239,68,68,.3)':'var(--border)'}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div>
+            <div style="font-weight:700;font-size:15px">${hw.title}</div>
+            <div style="font-size:12px;color:${overdue&&!sub?'var(--red)':'var(--muted)'};margin-top:3px">
+              ${overdue&&!sub?'⚠️ Muddati o\'tgan: ':'📅 Muddat: '}${due}
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            ${sub?`<span class="badge ${sub.status==='checked'?'badge-green':'badge-amber'}">${sub.status==='checked'?'✅ Tekshirildi':'⏳ Kutmoqda'}</span>`:'<span class="badge badge-blue">📤 Topshirilmagan</span>'}
+            <span style="font-size:12px;color:var(--gold)">${coinIcon()}${hw.coin_reward||0} coin</span>
+          </div>
+        </div>
+        ${hw.description?`<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;padding:8px;background:var(--bg3);border-radius:6px">${hw.description}</div>`:''}
+        ${sub?.status==='checked'?`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px;font-size:13px">
+          <div style="color:#86efac;font-weight:600">✅ Ball: ${sub.score||0}/${hw.max_score||10}</div>
+          <div style="color:var(--muted);margin-top:4px">Javobingiz: ${sub.answer_text||'—'}</div>
+        </div>`:sub?`<div style="background:rgba(245,158,11,.08);border-radius:8px;padding:10px;font-size:12px;color:var(--muted)">
+          Javobingiz: ${sub.answer_text||'—'}<br>Tekshirilishini kuting...
+        </div>`:`<div style="margin-top:8px">
+          <textarea class="inp" id="hwtxt-${hw.id}" placeholder="Javobingizni yozing..." style="min-height:80px;font-size:13px;margin-bottom:8px"></textarea>
+          <button class="btn btn-primary btn-sm" onclick="submitHomework('${hw.id}')" style="width:100%;justify-content:center">📤 Topshirish</button>
+        </div>`}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+async function submitHomework(hwId) {
+  const text=document.getElementById('hwtxt-'+hwId)?.value.trim();
+  if(!text){notify('Javob yozing','err');return;}
+  const{error}=await sb.from('homework_submissions').insert({
+    homework_id:hwId, student_id:currentStudent.id,
+    student_name:currentStudent.last_name+' '+currentStudent.first_name,
+    answer_text:text, status:'submitted', submitted_at:new Date().toISOString()
+  });
+  if(error){notify('Xato: '+error.message,'err');return;}
+  notify('Uy vazifasi topshirildi! ✅');
+  const{data:hws}=await sb.from('homework').select('*').eq('id',hwId).single();
+  await renderHomework(currentStudent.groupIds||[]);
 }
 
 // ============================================================
