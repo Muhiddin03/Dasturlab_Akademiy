@@ -1098,58 +1098,43 @@ function currentMonth(){const d=new Date();return d.getFullYear()+'-'+(d.getMont
 function monthLabel(m){if(!m)return'—';const[y,mo]=m.split('-');const n=['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];return(n[parseInt(mo)-1]||mo)+' '+y;}
 
 async function renderDashLeaderboard() {
-  const month = currentMonth();
-  const res   = myResults.filter(r => {
-    const m = r.month || (r.taken_at ? r.taken_at.slice(0,7) : '');
-    return m === month;
-  });
-  const map   = {};
-  // Test natijalari
-  res.forEach(r => {
-    if (!map[r.student_id]) map[r.student_id] = { name:r.student_name, testScores:[], journalTotal:0, journalMax:0 };
-    map[r.student_id].testScores.push(r.percent);
-  });
-  // Jurnal ballari (bu oy)
+  const el = document.getElementById('dashLeaderboard');
+  if(!el) return;
+  el.innerHTML='<div style="color:var(--muted);font-size:12px">Yuklanmoqda...</div>';
   try {
-    const gids = myGroups.map(g => g.id);
-    if (gids.length) {
-      const from = month + '-01', to = month + '-31';
-      const { data: jEntries } = await sb.from('journal_entries').select('*')
-        .in('group_id', gids).gte('lesson_date', from).lte('lesson_date', to);
-      const cats = myCategories;
-      (jEntries||[]).forEach(e => {
-        const sid = e.student_id;
-        const stu = myStudents.find(s => s.id === sid);
-        if (!stu) return;
-        if (!map[sid]) map[sid] = { name: stu.last_name+' '+stu.first_name, testScores:[], journalTotal:0, journalMax:0 };
-        const grCats = cats.filter(c => c.group_id === e.group_id || !c.group_id);
-        grCats.forEach(c => {
-          const v = (e.grades||{})[c.id];
-          if (v !== undefined && v !== '') { map[sid].journalTotal += parseFloat(v)||0; map[sid].journalMax += c.max_score; }
-        });
-      });
-    }
-  } catch(err) {}
+    // Load all coins for my students
+    const stuIds = myStudents.map(s=>s.id);
+    if(!stuIds.length){ el.innerHTML='<div style="color:var(--muted);font-size:13px">O\'quvchilar yo\'q</div>'; return; }
 
-  const medals = ['🥇','🥈','🥉','4.','5.'];
-  const ranked = Object.values(map).map(s => {
-    const testAvg = s.testScores.length ? Math.round(s.testScores.reduce((a,b)=>a+b,0)/s.testScores.length) : null;
-    const jPct    = s.journalMax > 0 ? Math.round(s.journalTotal / s.journalMax * 100) : null;
-    let combined;
-    if (testAvg !== null && jPct !== null) combined = Math.round(testAvg * 0.6 + jPct * 0.4);
-    else if (testAvg !== null) combined = testAvg;
-    else combined = jPct || 0;
-    return { ...s, combined };
-  }).sort((a,b) => b.combined - a.combined).slice(0, 5);
+    const { data: coins, error } = await sb.from('student_coins').select('student_id,amount').in('student_id', stuIds);
+    console.log('Dashboard coins:', coins, error);
 
-  document.getElementById('dashLeaderboard').innerHTML = ranked.length
-    ? ranked.map((r,i) => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:16px;width:24px">${medals[i]}</span>
-        <span style="flex:1;font-size:13px">${r.name}</span>
-        <span style="font-weight:700;color:#fcd34d;font-size:12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> —</span>
-        <span style="font-weight:700;color:var(--purple)">${r.combined}%</span>
-      </div>`).join('')
-    : '<div style="color:var(--muted);font-size:13px">Bu oyda natijalar yo\'q</div>';
+    const map = {};
+    (coins||[]).forEach(r => {
+      if(!map[r.student_id]) map[r.student_id]=0;
+      map[r.student_id] += r.amount||0;
+    });
+
+    const medals=['🥇','🥈','🥉','4.','5.'];
+    const coinColor=c=>c>=500?'#fcd34d':c>=200?'#c4b5fd':'#86efac';
+    const COIN='<svg width="13" height="13" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg>';
+
+    const ranked = myStudents
+      .map(s=>({name:s.last_name+' '+s.first_name, coins:map[s.id]||0}))
+      .filter(r=>r.coins>0)
+      .sort((a,b)=>b.coins-a.coins).slice(0,5);
+
+    el.innerHTML = ranked.length
+      ? ranked.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:16px;width:24px">${medals[i]||i+1+'.'}</span>
+          <span style="flex:1;font-size:13px;font-weight:600">${r.name}</span>
+          <span style="font-weight:800;color:${coinColor(r.coins)}">${COIN}${r.coins}</span>
+        </div>`).join('')
+      : '<div style="color:var(--muted);font-size:13px">Hali coin yo\'q</div>';
+  } catch(e) {
+    el.innerHTML='<div style="color:var(--muted);font-size:13px">Yuklab bo\'lmadi</div>';
+    console.error('dashLeaderboard err:',e);
+  }
 }
 
 function renderDashRecentResults() {
@@ -1253,16 +1238,22 @@ function renderMyStudents() {
     </div>`;
   }).join('')||'<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px">O\'quvchilar topilmadi</div>';
 
-  // Load coin totals async
-  list.forEach(async s => {
-    const el = document.getElementById('scoin-'+s.id);
-    if (!el) return;
-    try {
-      const { data } = await sb.from('student_coins').select('amount').eq('student_id', s.id);
-      const total = (data||[]).reduce((sum,r)=>sum+r.amount,0);
-      el.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg>'+total;
-    } catch(e) { el.textContent = '—'; }
-  });
+  // Load all coins in ONE batch request (async IIFE)
+  const stuIds = list.map(s=>s.id);
+  if(stuIds.length) {
+    (async () => {
+      try {
+        const { data: allCoins } = await sb.from('student_coins').select('student_id,amount').in('student_id', stuIds);
+        const coinTotals = {};
+        (allCoins||[]).forEach(r => { coinTotals[r.student_id]=(coinTotals[r.student_id]||0)+r.amount; });
+        const COIN='<svg width="14" height="14" viewBox="0 0 24 24" fill="#fcd34d" style="display:inline-block;vertical-align:middle;margin-right:2px"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg>';
+        stuIds.forEach(id => {
+          const el = document.getElementById('scoin-'+id);
+          if(el) el.innerHTML = COIN+(coinTotals[id]||0);
+        });
+      } catch(e) { console.warn('coin batch load err:',e); }
+    })();
+  }
 }
 
 async function saveStudent() {
@@ -3021,19 +3012,19 @@ async function getCoinRanking(groupId, month) {
   try {
     let q = sb.from('student_coins').select('student_id, amount, awarded_at');
     if (month) q = q.gte('awarded_at', month+'-01').lte('awarded_at', month+'-31T23:59:59');
-    const { data } = await q;
+    const { data, error } = await q;
+    console.log('getCoinRanking data:', data, error);
     const map = {};
     (data || []).forEach(r => {
       if (!map[r.student_id]) map[r.student_id] = 0;
       map[r.student_id] += r.amount || 0;
     });
-    // Filter by group
     if (groupId) {
       const gStudents = myStudents.filter(s => s.groupIds?.includes(groupId)).map(s => s.id);
       Object.keys(map).forEach(k => { if (!gStudents.includes(k)) delete map[k]; });
     }
-    return map; // { student_id: totalCoins }
-  } catch(e) { return {}; }
+    return map;
+  } catch(e) { console.error('getCoinRanking error:', e); return {}; }
 }
 
 // Render coin ranking (replaces renderRanking)
@@ -3044,6 +3035,7 @@ async function renderRanking(){
   wrap.innerHTML='<div style="color:var(--muted);padding:20px">Yuklanmoqda...</div>';
 
   const coinMap = await getCoinRanking(gf||null, mf||null);
+  console.log('Coin map:', coinMap);
 
   // Build ranked list with student names
   const ranked = Object.entries(coinMap)
