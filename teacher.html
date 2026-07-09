@@ -805,27 +805,39 @@ Javob: C</pre>
 
 <!-- ADD HOMEWORK -->
 <div class="modal-overlay" id="ov-addHomework">
-  <div class="modal" style="max-width:500px">
+  <div class="modal" style="max-width:620px">
     <div class="modal-title">📝 Uy vazifasi berish</div>
-    <div class="form-row"><label class="form-label">Sarlavha</label>
-      <input class="inp" id="hwTitle" placeholder="Vazifa nomi..."></div>
-    <div class="form-row"><label class="form-label">Tavsif</label>
-      <textarea class="inp" id="hwDesc" placeholder="Vazifa tavsifi, topshiriq..." style="min-height:80px"></textarea></div>
+
+    <!-- Asosiy ma'lumotlar -->
     <div class="form-grid">
+      <div class="form-row"><label class="form-label">Sarlavha</label>
+        <input class="inp" id="hwTitle" placeholder="Vazifa nomi..."></div>
       <div class="form-row"><label class="form-label">Guruh</label>
         <select class="inp" id="hwGroup"></select></div>
+    </div>
+    <div class="form-grid3">
       <div class="form-row"><label class="form-label">Muddat</label>
         <input class="inp" id="hwDue" type="date"></div>
-    </div>
-    <div class="form-grid">
       <div class="form-row"><label class="form-label">Max ball</label>
         <input class="inp" id="hwMaxScore" type="number" value="10" min="1"></div>
-      <div class="form-row"><label class="form-label">🪙 Coin (bajarilsa)</label>
+      <div class="form-row"><label class="form-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="#fcd34d"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg> Coin</label>
         <input class="inp" id="hwCoin" type="number" value="15" min="0"></div>
     </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+    <div class="form-row"><label class="form-label">Umumiy tavsif (ixtiyoriy)</label>
+      <textarea class="inp" id="hwDesc" placeholder="Qo'shimcha izoh..." style="min-height:56px"></textarea></div>
+
+    <hr style="border-color:var(--border);margin:14px 0">
+
+    <!-- Savollar -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <strong style="font-size:13px">Topshiriqlar / Savollar</strong>
+      <button class="btn btn-secondary btn-sm" onclick="addHwQuestion()">+ Savol qo'shish</button>
+    </div>
+    <div id="hwQuestions" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto"></div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
       <button class="btn btn-secondary" onclick="closeM('addHomework')">Bekor</button>
-      <button class="btn btn-primary" onclick="saveHomework()">💾 Berish</button>
+      <button class="btn btn-primary" onclick="saveHomework()">💾 Vazifa berish</button>
     </div>
   </div>
 </div>
@@ -3170,15 +3182,22 @@ async function loadHomework() {
     const pending=hwSubs.filter(s=>s.status==='submitted').length;
     const checked=hwSubs.filter(s=>s.status==='checked').length;
     const due=hw.due_date?new Date(hw.due_date).toLocaleDateString('uz-UZ',{day:'numeric',month:'short'}):'—';
+    const hwQs = hw.questions ? (() => { try{return JSON.parse(hw.questions);}catch{return[];} })() : [];
     return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
-          <div style="font-weight:700;font-size:14px">${hw.title}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:3px">${g?.name||'—'} • Muddat: ${due}</div>
+          <div style="font-weight:700;font-size:15px">${hw.title}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">
+            ${g?.name||'—'} • Muddat: ${due}
+            ${hwQs.length?` • <span style="color:var(--purple)">${hwQs.length} savol</span>`:''}
+          </div>
         </div>
         <span class="badge ${hw.status==='active'?'badge-green':'badge-red'}">${hw.status==='active'?'Faol':'Yopilgan'}</span>
       </div>
       ${hw.description?`<div style="font-size:12px;color:var(--muted);line-height:1.4">${hw.description}</div>`:''}
+      ${hwQs.length?`<div style="background:var(--bg3);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+        ${hwQs.map((q,i)=>`<div style="font-size:12px;display:flex;gap:6px"><span style="color:var(--purple);font-weight:700;flex-shrink:0">${i+1}.</span><span>${q}</span></div>`).join('')}
+      </div>`:''}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
         <div style="background:var(--bg3);border-radius:8px;padding:8px">
           <div style="font-weight:700;color:var(--amber)">${pending}</div>
@@ -3202,21 +3221,55 @@ async function loadHomework() {
   }).join('');
 }
 
+let hwQCounter = 0;
+
+function addHwQuestion(text='') {
+  hwQCounter++;
+  const id = 'hwq'+hwQCounter;
+  const wrap = document.getElementById('hwQuestions');
+  const div = document.createElement('div');
+  div.id = 'hwqb-'+id;
+  div.style.cssText = 'background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;gap:8px;align-items:flex-start';
+  div.innerHTML = `
+    <span style="background:rgba(124,111,247,.2);color:var(--purple);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:8px">${hwQCounter}</span>
+    <textarea class="inp hw-q-text" style="flex:1;min-height:60px;margin:0;font-size:13px;resize:vertical" placeholder="Savol yoki topshiriq matni...">${text}</textarea>
+    <button onclick="document.getElementById('hwqb-${id}').remove();renumberHwQ()" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;flex-shrink:0;margin-top:4px">✕</button>`;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function renumberHwQ() {
+  document.querySelectorAll('#hwQuestions > div').forEach((el,i) => {
+    const num = el.querySelector('span');
+    if(num) num.textContent = i+1;
+  });
+}
+
 async function saveHomework() {
-  const title=document.getElementById('hwTitle').value.trim();
-  const desc=document.getElementById('hwDesc').value.trim();
-  const gid=document.getElementById('hwGroup').value;
-  const due=document.getElementById('hwDue').value;
-  const maxScore=parseInt(document.getElementById('hwMaxScore').value)||10;
-  const coin=parseInt(document.getElementById('hwCoin').value)||15;
+  const title    = document.getElementById('hwTitle').value.trim();
+  const desc     = document.getElementById('hwDesc').value.trim();
+  const gid      = document.getElementById('hwGroup').value;
+  const due      = document.getElementById('hwDue').value;
+  const maxScore = parseInt(document.getElementById('hwMaxScore').value)||10;
+  const coin     = parseInt(document.getElementById('hwCoin').value)||15;
   if(!title){notify('Sarlavha kerak','err');return;}
+
+  // Collect questions
+  const qTexts = [...document.querySelectorAll('.hw-q-text')]
+    .map(t=>t.value.trim()).filter(Boolean);
+
+  // Build questions array for description
+  const questionsJson = qTexts.length ? JSON.stringify(qTexts) : null;
+
   const{error}=await sb.from('homework').insert({
     teacher_id:currentUser.id, group_id:gid||null,
-    title, description:desc, due_date:due||null,
-    max_score:maxScore, coin_reward:coin, status:'active'
+    title, description:desc, questions:questionsJson,
+    due_date:due||null, max_score:maxScore, coin_reward:coin, status:'active'
   });
   if(error){notify('Xato: '+error.message,'err');return;}
-  closeM('addHomework');notify('Uy vazifasi berildi ✅');
+  closeM('addHomework');
+  notify('Uy vazifasi berildi ✅ ('+(qTexts.length||0)+' savol)');
+  hwQCounter=0;
   await loadHomework();
 }
 
@@ -3238,12 +3291,17 @@ async function viewHomeworkSubs(hwId, hwTitle){
   const modal=document.createElement('div');
   modal.className='modal-overlay open';modal.style.zIndex='300';
   const pending=(subs||[]).filter(s=>s.status==='submitted');
+  const hwQsParsed = hw?.questions ? (() => { try{return JSON.parse(hw.questions);}catch{return[];} })() : [];
   modal.innerHTML=`<div class="modal modal-lg" style="max-width:600px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div class="modal-title" style="margin:0">📝 ${hwTitle}</div>
       <button class="btn btn-secondary btn-sm" onclick="this.closest('.modal-overlay').remove()">✕</button>
     </div>
-    <div style="max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+    ${hwQsParsed.length?`<div style="background:rgba(124,111,247,.08);border:1px solid rgba(124,111,247,.2);border-radius:8px;padding:10px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--purple);font-weight:700;margin-bottom:6px">TOPSHIRIQLAR:</div>
+      ${hwQsParsed.map((q,i)=>`<div style="font-size:12px;display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--purple);font-weight:700">${i+1}.</span><span>${q}</span></div>`).join('')}
+    </div>`:''}
+    <div style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
       ${(subs||[]).length?pending.concat((subs||[]).filter(s=>s.status!=='submitted')).map(sub=>{
         const stu=myStudents.find(s=>s.id===sub.student_id);
         const name=stu?stu.last_name+' '+stu.first_name:sub.student_name||'O\'quvchi';
@@ -3691,6 +3749,14 @@ function openM(name){
     const due=new Date(); due.setDate(due.getDate()+7);
     const dueInp=document.getElementById('hwDue');
     if(dueInp) dueInp.value=due.toISOString().slice(0,10);
+    // Reset questions
+    hwQCounter=0;
+    const qw=document.getElementById('hwQuestions');
+    if(qw){qw.innerHTML=''; addHwQuestion();}
+    // Reset fields
+    ['hwTitle','hwDesc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('hwMaxScore').value='10';
+    document.getElementById('hwCoin').value='15';
   }
   if(name==='createTest'){
     document.getElementById('questionsWrap').innerHTML='';
