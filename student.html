@@ -571,7 +571,19 @@ async function renderHomework(gids) {
             <span style="font-size:12px;color:var(--gold)">${coinIcon()}${hw.coin_reward||0} coin</span>
           </div>
         </div>
-        ${hw.description?`<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;padding:8px;background:var(--bg3);border-radius:6px">${hw.description}</div>`:''}
+        ${hw.description?`<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:8px">${hw.description}</div>`:''}
+        ${(() => {
+          try {
+            const qs = hw.questions ? JSON.parse(hw.questions) : [];
+            if(!qs.length) return '';
+            return `<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
+              ${qs.map((q,i)=>`<div style="display:flex;gap:8px;font-size:13px">
+                <span style="background:rgba(124,111,247,.2);color:var(--purple);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${i+1}</span>
+                <span style="line-height:1.4">${q}</span>
+              </div>`).join('')}
+            </div>`;
+          } catch(e){return '';}
+        })()}
         ${sub?.status==='checked'?`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px;font-size:13px">
           <div style="color:#86efac;font-weight:600">✅ Ball: ${sub.score||0}/${hw.max_score||10}</div>
           <div style="color:var(--muted);margin-top:4px">Javobingiz: ${sub.answer_text||'—'}</div>
