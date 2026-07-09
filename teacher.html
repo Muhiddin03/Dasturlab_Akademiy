@@ -3329,16 +3329,32 @@ async function checkHwSub(subId, stuId, hwId, coinReward, maxScore){
   const score=parseInt(document.getElementById('hwsc-'+subId)?.value)||0;
   const pct=maxScore>0?Math.round(score/maxScore*100):0;
   const earnedCoin=Math.round(coinReward*pct/100);
-  await sb.from('homework_submissions').update({status:'checked',score,checked_at:new Date().toISOString()}).eq('id',subId);
-  if(earnedCoin>0&&stuId){
-    await sb.from('student_coins').insert({
-      student_id:stuId, source:'homework', source_id:'hw_'+subId,
-      amount:earnedCoin, description:'Uy vazifasi: '+pct+'%',
-      awarded_at:new Date().toISOString()
-    });
+
+  // Update submission
+  await sb.from('homework_submissions').update({
+    status:'checked', score, checked_at:new Date().toISOString()
+  }).eq('id',subId);
+
+  if(stuId){
+    const sourceId='hw_'+subId;
+    // Delete old coin record (allows re-checking with different score)
+    await sb.from('student_coins').delete().eq('source_id',sourceId).eq('student_id',stuId);
+    // Insert new coin only if > 0
+    if(earnedCoin>0){
+      await sb.from('student_coins').insert({
+        student_id:stuId, source:'homework', source_id:sourceId,
+        amount:earnedCoin, description:'Uy vazifasi: '+score+'/'+maxScore+' ('+pct+'%)',
+        awarded_at:new Date().toISOString()
+      });
+    }
   }
-  notify('Tekshirildi! Coin: +'+earnedCoin);
-  document.querySelector('[data-page="homework"]')?.click();
+
+  const btn=document.querySelector(`button[onclick*="${subId}"]`);
+  if(btn){
+    btn.closest('div[style]').innerHTML=`
+      <div style="font-size:12px;color:var(--green);font-weight:600">✅ Baholandi: ${score}/${maxScore} ball${earnedCoin>0?' • +'+earnedCoin+' coin':' • Coin berilmadi'}</div>`;
+  }
+  notify(earnedCoin>0?'✅ Tekshirildi! +'+earnedCoin+' coin':'✅ Tekshirildi (0 ball — coin berilmadi)');
 }
 
 
