@@ -3213,8 +3213,13 @@ async function loadHomework() {
         </div>
       </div>
       <div style="display:flex;gap:6px">
-        ${pending?`<button class="btn btn-primary btn-xs" onclick="viewHomeworkSubs('${hw.id}','${hw.title.replace(/'/g,'')}')" style="flex:1">✅ Tekshirish (${pending})</button>`:''}
-        <button class="btn btn-secondary btn-xs" onclick="toggleHwStatus('${hw.id}','${hw.status}')" style="flex:1">${hw.status==='active'?'⏸ Yopish':'▶ Ochish'}</button>
+        <button class="btn btn-secondary btn-xs" onclick="viewHomeworkSubs('${hw.id}','${hw.title.replace(/'/g,'')}','all')" style="flex:1">
+          📋 Barchasi (${hwSubs.length})
+        </button>
+        ${pending?`<button class="btn btn-primary btn-xs" onclick="viewHomeworkSubs('${hw.id}','${hw.title.replace(/'/g,'')}','pending')" style="flex:1">⏳ Tekshirish (${pending})</button>`:''}
+        <button class="btn btn-secondary btn-xs" onclick="toggleHwStatus('${hw.id}','${hw.status}')">
+          ${hw.status==='active'?'⏸':'▶'}
+        </button>
         <button class="btn btn-danger btn-xs" onclick="deleteHomework('${hw.id}')">🗑</button>
       </div>
     </div>`;
@@ -3285,76 +3290,183 @@ async function deleteHomework(id){
   notify('Vazifa o\'chirildi');await loadHomework();
 }
 
-async function viewHomeworkSubs(hwId, hwTitle){
+async function viewHomeworkSubs(hwId, hwTitle, filter='all'){
   const{data:subs}=await sb.from('homework_submissions').select('*').eq('homework_id',hwId).order('submitted_at',{ascending:false});
   const{data:hw}=await sb.from('homework').select('*').eq('id',hwId).single();
+
+  // Load current coins for checked students
+  const coinMap={};
+  const checkedSubs=(subs||[]).filter(s=>s.status==='checked');
+  if(checkedSubs.length){
+    const{data:coins}=await sb.from('student_coins').select('student_id,amount,source_id')
+      .in('source_id',checkedSubs.map(s=>'hw_'+s.id));
+    (coins||[]).forEach(c=>{ coinMap[c.source_id]=c.amount; });
+  }
+
+  const hwQsParsed = hw?.questions ? (() => { try{return JSON.parse(hw.questions);}catch{return[];} })() : [];
+  const pending=(subs||[]).filter(s=>s.status==='submitted');
+  const checked=(subs||[]).filter(s=>s.status==='checked');
+  let displaySubs = filter==='pending' ? pending : (subs||[]);
+
   const modal=document.createElement('div');
   modal.className='modal-overlay open';modal.style.zIndex='300';
-  const pending=(subs||[]).filter(s=>s.status==='submitted');
-  const hwQsParsed = hw?.questions ? (() => { try{return JSON.parse(hw.questions);}catch{return[];} })() : [];
-  modal.innerHTML=`<div class="modal modal-lg" style="max-width:600px">
+  modal.innerHTML=`<div class="modal modal-lg" style="max-width:620px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div class="modal-title" style="margin:0">📝 ${hwTitle}</div>
+      <div>
+        <div class="modal-title" style="margin:0">📝 ${hwTitle}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">
+          ⏳ ${pending.length} kutmoqda · ✅ ${checked.length} tekshirildi
+        </div>
+      </div>
       <button class="btn btn-secondary btn-sm" onclick="this.closest('.modal-overlay').remove()">✕</button>
     </div>
+
+    <!-- Filter tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button onclick="hwFilterSubs(this,'all')" class="hw-filter-btn ${filter==='all'?'active':''}"
+        style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:${filter==='all'?'var(--purple)':'var(--bg3)'};color:${filter==='all'?'#fff':'var(--muted)'}">
+        Barchasi (${(subs||[]).length})
+      </button>
+      <button onclick="hwFilterSubs(this,'pending')" class="hw-filter-btn ${filter==='pending'?'active':''}"
+        style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:${filter==='pending'?'var(--amber)':'var(--bg3)'};color:${filter==='pending'?'#fff':'var(--muted)'}">
+        ⏳ Kutmoqda (${pending.length})
+      </button>
+      <button onclick="hwFilterSubs(this,'checked')" class="hw-filter-btn ${filter==='checked'?'active':''}"
+        style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:${filter==='checked'?'var(--green)':'var(--bg3)'};color:${filter==='checked'?'#fff':'var(--muted)'}">
+        ✅ Tekshirildi (${checked.length})
+      </button>
+    </div>
+
     ${hwQsParsed.length?`<div style="background:rgba(124,111,247,.08);border:1px solid rgba(124,111,247,.2);border-radius:8px;padding:10px;margin-bottom:12px">
       <div style="font-size:11px;color:var(--purple);font-weight:700;margin-bottom:6px">TOPSHIRIQLAR:</div>
-      ${hwQsParsed.map((q,i)=>`<div style="font-size:12px;display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--purple);font-weight:700">${i+1}.</span><span>${q}</span></div>`).join('')}
+      ${hwQsParsed.map((q,i)=>`<div style="font-size:12px;display:flex;gap:6px;margin-bottom:4px">
+        <span style="color:var(--purple);font-weight:700;flex-shrink:0">${i+1}.</span><span>${q}</span>
+      </div>`).join('')}
     </div>`:''}
-    <div style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
-      ${(subs||[]).length?pending.concat((subs||[]).filter(s=>s.status!=='submitted')).map(sub=>{
-        const stu=myStudents.find(s=>s.id===sub.student_id);
-        const name=stu?stu.last_name+' '+stu.first_name:sub.student_name||'O\'quvchi';
-        return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <strong>${name}</strong>
-            <span class="badge ${sub.status==='checked'?'badge-green':sub.status==='submitted'?'badge-amber':'badge-blue'}">${sub.status==='checked'?'✅ Tekshirildi':sub.status==='submitted'?'⏳ Kutmoqda':'📤 Yuborildi'}</span>
-          </div>
-          <div style="font-size:12px;color:var(--muted);background:var(--bg);border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.5">${sub.answer_text||'Javob yo\'q'}</div>
-          ${sub.status==='submitted'?`<div style="display:flex;gap:6px;align-items:center">
-            <input type="number" id="hwsc-${sub.id}" min="0" max="${hw?.max_score||10}" value="${hw?.max_score||10}"
-              class="inp" style="width:70px;margin:0;padding:5px 8px;font-size:12px" placeholder="Ball">
-            <span style="font-size:12px;color:var(--muted)">/ ${hw?.max_score||10}</span>
-            <button class="btn btn-primary btn-xs" onclick="checkHwSub('${sub.id}','${sub.student_id}','${hwId}',${hw?.coin_reward||15},${hw?.max_score||10})" style="margin-left:auto">✅ Tasdiqlash</button>
-          </div>`:`<div style="font-size:12px;color:var(--green)">Ball: ${sub.score||0}/${hw?.max_score||10}</div>`}
-        </div>`;
-      }).join(''):'<div style="text-align:center;color:var(--muted);padding:30px">Hali topshirilmagan</div>'}
+
+    <div id="hwSubsList" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+      ${renderHwSubsList(displaySubs, hw, coinMap)}
     </div>
   </div>`;
+
+  // Store data for filter switching
+  modal._hwData = { subs, hw, coinMap, hwId, hwTitle };
+
+  window.hwFilterSubs = (btn, f) => {
+    const data = btn.closest('.modal-overlay')._hwData;
+    const list = f==='pending'?data.subs.filter(s=>s.status==='submitted')
+                :f==='checked'?data.subs.filter(s=>s.status==='checked')
+                :data.subs;
+    // Update button styles
+    btn.closest('div').querySelectorAll('.hw-filter-btn').forEach(b=>{
+      b.style.background='var(--bg3)'; b.style.color='var(--muted)';
+    });
+    btn.style.background=f==='pending'?'var(--amber)':f==='checked'?'var(--green)':'var(--purple)';
+    btn.style.color='#fff';
+    document.getElementById('hwSubsList').innerHTML=renderHwSubsList(list,data.hw,data.coinMap);
+  };
+
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
   document.body.appendChild(modal);
 }
 
+function renderHwSubsList(subs, hw, coinMap) {
+  if(!subs||!subs.length) return '<div style="text-align:center;color:var(--muted);padding:30px">Ro\'yxat bo\'sh</div>';
+  return subs.map(sub=>{
+    const stu=myStudents.find(s=>s.id===sub.student_id);
+    const name=stu?stu.last_name+' '+stu.first_name:sub.student_name||'O\'quvchi';
+    const existingCoin=coinMap?.['hw_'+sub.id]||0;
+    const date=sub.submitted_at?new Date(sub.submitted_at).toLocaleDateString('uz-UZ',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<div style="background:var(--bg3);border:1px solid ${sub.status==='checked'?'rgba(34,197,94,.3)':'var(--border)'};border-radius:10px;padding:14px" id="hwsub-${sub.id}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <strong style="font-size:13px">${name}</strong>
+          <div style="font-size:11px;color:var(--hint);margin-top:1px">🕐 ${date}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+          ${sub.status==='checked'?`<span style="font-size:12px;color:var(--gold);font-weight:700">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#fcd34d"><circle cx="12" cy="12" r="10"/>
+            <text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg>
+            ${existingCoin}</span>`:''}
+          <span class="badge ${sub.status==='checked'?'badge-green':'badge-amber'}">${sub.status==='checked'?'✅ Tekshirildi':'⏳ Kutmoqda'}</span>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text);background:var(--bg);border-radius:6px;padding:8px;margin-bottom:10px;line-height:1.6;white-space:pre-line">${sub.answer_text||'Javob yo\'q'}</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:var(--muted);white-space:nowrap">Ball:</label>
+        <input type="number" id="hwsc-${sub.id}" min="0" max="${hw?.max_score||10}"
+          value="${sub.status==='checked'?sub.score||0:hw?.max_score||10}"
+          class="inp" style="width:65px;margin:0;padding:5px 8px;font-size:13px;text-align:center">
+        <span style="font-size:12px;color:var(--muted)">/ ${hw?.max_score||10}</span>
+        <label style="font-size:12px;color:var(--muted);white-space:nowrap;margin-left:4px">Coin:</label>
+        <input type="number" id="hwcc-${sub.id}" min="0"
+          value="${sub.status==='checked'?existingCoin:hw?.coin_reward||15}"
+          class="inp" style="width:65px;margin:0;padding:5px 8px;font-size:13px;text-align:center">
+        <button class="btn btn-primary btn-xs" style="margin-left:auto"
+          onclick="checkHwSubAdv('${sub.id}','${sub.student_id}','${hw?.id}',${hw?.max_score||10})">
+          ${sub.status==='checked'?'🔄 Qayta':'✅ Tasdiqlash'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 async function checkHwSub(subId, stuId, hwId, coinReward, maxScore){
-  const score=parseInt(document.getElementById('hwsc-'+subId)?.value)||0;
-  const pct=maxScore>0?Math.round(score/maxScore*100):0;
-  const earnedCoin=Math.round(coinReward*pct/100);
+  await checkHwSubAdv(subId, stuId, hwId, maxScore);
+}
+
+async function checkHwSubAdv(subId, stuId, hwId, maxScore){
+  const score     = parseInt(document.getElementById('hwsc-'+subId)?.value)||0;
+  const earnedCoin= parseInt(document.getElementById('hwcc-'+subId)?.value)||0;
+  const pct       = maxScore>0?Math.round(score/maxScore*100):0;
 
   // Update submission
-  await sb.from('homework_submissions').update({
+  const{error}=await sb.from('homework_submissions').update({
     status:'checked', score, checked_at:new Date().toISOString()
   }).eq('id',subId);
+  if(error){notify('Xato: '+error.message,'err');return;}
 
   if(stuId){
     const sourceId='hw_'+subId;
-    // Delete old coin record (allows re-checking with different score)
     await sb.from('student_coins').delete().eq('source_id',sourceId).eq('student_id',stuId);
-    // Insert new coin only if > 0
     if(earnedCoin>0){
       await sb.from('student_coins').insert({
         student_id:stuId, source:'homework', source_id:sourceId,
-        amount:earnedCoin, description:'Uy vazifasi: '+score+'/'+maxScore+' ('+pct+'%)',
+        amount:earnedCoin,
+        description:'Uy vazifasi: '+score+'/'+maxScore+' ('+pct+'%)',
         awarded_at:new Date().toISOString()
       });
     }
   }
 
-  const btn=document.querySelector(`button[onclick*="${subId}"]`);
-  if(btn){
-    btn.closest('div[style]').innerHTML=`
-      <div style="font-size:12px;color:var(--green);font-weight:600">✅ Baholandi: ${score}/${maxScore} ball${earnedCoin>0?' • +'+earnedCoin+' coin':' • Coin berilmadi'}</div>`;
+  // Update UI in place
+  const card=document.getElementById('hwsub-'+subId);
+  if(card){
+    // Update badge
+    const badge=card.querySelector('.badge');
+    if(badge){badge.className='badge badge-green';badge.textContent='✅ Tekshirildi';}
+    // Update coin display
+    const coinSpan=card.querySelector('[style*="gold"]');
+    if(earnedCoin>0){
+      const COIN='<svg width="12" height="12" viewBox="0 0 24 24" fill="#fcd34d"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">C</text></svg>';
+      if(coinSpan) coinSpan.innerHTML=COIN+earnedCoin;
+      else {
+        const badgeParent=badge?.parentElement;
+        if(badgeParent){
+          const cs=document.createElement('span');
+          cs.style.cssText='font-size:12px;color:var(--gold);font-weight:700';
+          cs.innerHTML=COIN+earnedCoin;
+          badgeParent.insertBefore(cs,badge);
+        }
+      }
+    }
+    // Update confirm button
+    const btn=card.querySelector('button.btn-primary');
+    if(btn) btn.textContent='🔄 Qayta';
+    card.style.borderColor='rgba(34,197,94,.3)';
   }
-  notify(earnedCoin>0?'✅ Tekshirildi! +'+earnedCoin+' coin':'✅ Tekshirildi (0 ball — coin berilmadi)');
+
+  notify(earnedCoin>0?'✅ Tekshirildi! +'+earnedCoin+' coin':'✅ Tekshirildi');
 }
 
 
