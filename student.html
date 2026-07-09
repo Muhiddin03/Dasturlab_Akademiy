@@ -585,30 +585,50 @@ async function renderHomework(gids) {
           } catch(e){return '';}
         })()}
         ${sub?.status==='checked'?`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px;font-size:13px">
-          <div style="color:#86efac;font-weight:600">✅ Ball: ${sub.score||0}/${hw.max_score||10}</div>
-          <div style="color:var(--muted);margin-top:4px">Javobingiz: ${sub.answer_text||'—'}</div>
-        </div>`:sub?`<div style="background:rgba(245,158,11,.08);border-radius:8px;padding:10px;font-size:12px;color:var(--muted)">
-          Javobingiz: ${sub.answer_text||'—'}<br>Tekshirilishini kuting...
-        </div>`:`<div style="margin-top:8px">
-          <textarea class="inp" id="hwtxt-${hw.id}" placeholder="Javobingizni yozing..." style="min-height:80px;font-size:13px;margin-bottom:8px"></textarea>
-          <button class="btn btn-primary btn-sm" onclick="submitHomework('${hw.id}')" style="width:100%;justify-content:center">📤 Topshirish</button>
+          <div style="color:#86efac;font-weight:700;margin-bottom:6px">✅ Ball: ${sub.score||0}/${hw.max_score||10}</div>
+          <div style="color:var(--muted);font-size:12px;white-space:pre-line">${sub.answer_text||'—'}</div>
+        </div>`:sub?`<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.15);border-radius:8px;padding:10px;font-size:12px;color:var(--muted)">
+          <div style="color:var(--amber);font-weight:600;margin-bottom:4px">⏳ Tekshirilishini kuting...</div>
+          <div style="white-space:pre-line">${sub.answer_text||'—'}</div>
+        </div>`:`<div style="margin-top:10px" id="hwform-${hw.id}" data-qcount="${(() => { try{return JSON.parse(hw.questions||'[]').length;}catch{return 0;} })()}">
+          ${(() => {
+            try {
+              const qs = hw.questions ? JSON.parse(hw.questions) : [];
+              if(qs.length > 0){
+                const qHtml = qs.map((q,qi) =>
+                  `<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:4px">${qi+1}. ${q}</div><textarea class="inp" id="hwtxt-${hw.id}-${qi}" placeholder="Javob yozing..." style="min-height:56px;font-size:13px"></textarea></div>`
+                ).join('');
+                return qHtml + `<button class="btn btn-primary btn-sm" onclick="submitHomework('${hw.id}',${qs.length})" style="width:100%;justify-content:center;margin-top:4px">📤 Topshirish</button>`;
+              }
+            } catch(e){}
+            return `<textarea class="inp" id="hwtxt-${hw.id}-0" placeholder="Javobingizni yozing..." style="min-height:80px;font-size:13px;margin-bottom:8px"></textarea><button class="btn btn-primary btn-sm" onclick="submitHomework('${hw.id}',1)" style="width:100%;justify-content:center">📤 Topshirish</button>`;
+          })()}
         </div>`}
       </div>`;
     }).join('')}
   </div>`;
 }
 
-async function submitHomework(hwId) {
-  const text=document.getElementById('hwtxt-'+hwId)?.value.trim();
-  if(!text){notify('Javob yozing','err');return;}
+async function submitHomework(hwId, qCount=1) {
+  // Collect all question answers
+  const answers = [];
+  for(let i=0;i<qCount;i++){
+    const el=document.getElementById('hwtxt-'+hwId+'-'+i);
+    answers.push(el?.value.trim()||'');
+  }
+  if(answers.every(a=>!a)){notify('Kamida bitta javob yozing','err');return;}
+
+  const answerText = qCount>1
+    ? answers.map((a,i)=>(i+1)+'. '+(a||'(berilmadi)')).join('\n')
+    : (answers[0]||'');
+
   const{error}=await sb.from('homework_submissions').insert({
     homework_id:hwId, student_id:currentStudent.id,
     student_name:currentStudent.last_name+' '+currentStudent.first_name,
-    answer_text:text, status:'submitted', submitted_at:new Date().toISOString()
+    answer_text:answerText, status:'submitted', submitted_at:new Date().toISOString()
   });
   if(error){notify('Xato: '+error.message,'err');return;}
   notify('Uy vazifasi topshirildi! ✅');
-  const{data:hws}=await sb.from('homework').select('*').eq('id',hwId).single();
   await renderHomework(currentStudent.groupIds||[]);
 }
 
